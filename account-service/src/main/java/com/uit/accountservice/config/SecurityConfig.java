@@ -58,6 +58,8 @@ public class SecurityConfig implements WebMvcConfigurer {
                 // Internal endpoints - should only be accessible via service mesh
                 // SECURITY NOTE: In production, these should be protected by network policies
                 .requestMatchers("/accounts/internal/**").permitAll()
+                .requestMatchers("/cards/internal/**").permitAll()
+                .requestMatchers("/beneficiaries/internal/**").permitAll()
                 // Public endpoints - no authentication required
                 .requestMatchers("/accounts/public/**").permitAll()
                 // Actuator health check
@@ -119,7 +121,14 @@ public class SecurityConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
         registry.addInterceptor(roleCheckInterceptor)
-                .excludePathPatterns("/accounts/internal/**", "/accounts/public/**", "/actuator/**", "/ws/**");
+                .excludePathPatterns(
+                    "/accounts/internal/**", 
+                    "/accounts/public/**", 
+                    "/cards/internal/**",
+                    "/beneficiaries/internal/**",
+                    "/actuator/**", 
+                    "/ws/**"
+                );
     }
 
     @Bean
