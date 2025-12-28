@@ -80,6 +80,15 @@ services:
           - /user-preferences
         strip_path: false
 
+  # risk-engine (Public for testing)
+  - name: risk-engine
+    url: http://risk-engine:6000/assess
+    routes:
+      - name: risk-engine-route
+        paths:
+          - /risk
+        strip_path: true
+
 # ============================================================================
 # AUTHENTICATION CONFIGURATION
 # ============================================================================

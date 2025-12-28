@@ -2,6 +2,7 @@ package com.uit.transactionservice.entity;
 
 public enum TransactionStatus {
     PENDING_OTP,   // Đang chờ xác thực OTP
+    PENDING_FACE_AUTH, // Đang chờ xác thực khuôn mặt (FaceID)
     PENDING,       // Đang chờ xử lý (sau khi OTP verified)
     PROCESSING,    // Đang xử lý
     SUCCESS,       // Thành công (hoàn thành)
