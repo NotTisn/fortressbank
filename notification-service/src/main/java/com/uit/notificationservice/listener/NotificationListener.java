@@ -64,15 +64,14 @@ public class NotificationListener {
             // Extract transaction details from message payload (matching transaction-service sender)
             String transactionId = (String) message.get("transactionId");
             String senderUserId = (String) message.get("senderUserId");
-            String senderAccountId = (String) message.get("senderAccountId");
+            String senderAccountNumber = (String) message.get("senderAccountNumber");
             String receiverUserId = (String) message.get("receiverUserId");
-            String receiverAccountId = (String) message.get("receiverAccountId");
-            Integer notiWho = (Integer) message.get("notiWho"); // False: receiver, true: sender
+            String receiverAccountNumber = (String) message.get("receiverAccountNumber");
+            Integer notiWho = (Integer) message.get("notiWho"); // 0: both, 1: only sender, 2: only receiver
             Object amountObj = message.get("amount");
             String status = (String) message.get("status");
             boolean success = Boolean.TRUE.equals(message.get("success")); // Safe unboxing
             String notificationMessage = (String) message.get("message");
-            String timestamp = (String) message.get("timestamp");
 
             // Convert amount to BigDecimal
             BigDecimal amount = null;
@@ -81,10 +80,10 @@ public class NotificationListener {
             }
 
             log.info("Processing transaction notification - TxID: {}, SenderUser: {}, SenderAccount: {}, ReceiverUser: {}, ReceiverAccount: {}, Status: {}, Success: {}",
-                    transactionId, senderUserId, senderAccountId, receiverUserId, receiverAccountId, status, success);
+                    transactionId, senderUserId, senderAccountNumber, receiverUserId, receiverAccountNumber, status, success);
 
             // ========== SENDER NOTIFICATION (Money Deducted) ==========
-            log.info("Processing sender notification for user: {} (account: {})", senderUserId, senderAccountId);
+            log.info("Processing sender notification for user: {} (account: {})", senderUserId, senderAccountNumber);
             if (notiWho == 0 || notiWho == 1) {
                 UserPreference senderPreference = userPreferenceRepo.findById(senderUserId)
                         .orElseGet(() -> {
@@ -94,20 +93,20 @@ public class NotificationListener {
 
                 // Build sender notification (money deducted)
                 String senderTitle = success ? "Money Sent Successfully" : "Transaction Failed";
-                String senderContent = formatSenderNotification(success, amount, receiverAccountId, status, notificationMessage);
+                String senderContent = formatSenderNotification(success, amount, receiverAccountNumber, status, notificationMessage);
 
                 // Send Push Notification to Sender
                 sendPushNotification(senderUserId, senderPreference, transactionId, senderTitle, senderContent);
 
                 // Send Email Notification to Sender
                 sendEmailNotification(senderUserId, senderPreference, transactionId, senderTitle,
-                        senderContent, status, amount, success, "Recipient", receiverAccountId);
+                        senderContent, status, amount, success, "Recipient", receiverAccountNumber);
             }
 
             // ========== RECEIVER NOTIFICATION (Money Received) ==========
             // Only send to receiver if transaction is successful
             if (success && notiWho == 0 || notiWho == 2) {
-                log.info("Processing receiver notification for user: {} (account: {})", receiverUserId, receiverAccountId);
+                log.info("Processing receiver notification for user: {} (account: {})", receiverUserId, receiverAccountNumber);
 
                 UserPreference receiverPreference = userPreferenceRepo.findById(receiverUserId)
                         .orElseGet(() -> {
@@ -117,14 +116,14 @@ public class NotificationListener {
 
                 // Build receiver notification (money received)
                 String receiverTitle = "Money Received";
-                String receiverContent = formatReceiverNotification(amount, senderAccountId);
+                String receiverContent = formatReceiverNotification(amount, senderAccountNumber);
 
                 // Send Push Notification to Receiver
                 sendPushNotification(receiverUserId, receiverPreference, transactionId, receiverTitle, receiverContent);
 
                 // Send Email Notification to Receiver
                 sendEmailNotification(receiverUserId, receiverPreference, transactionId, receiverTitle,
-                        receiverContent, status, amount, true, "Sender", senderAccountId);
+                        receiverContent, status, amount, true, "Sender", senderAccountNumber);
             }
 
             log.info("Transaction notification processing completed for: {}", transactionId);
@@ -139,7 +138,7 @@ public class NotificationListener {
      * Format sender notification message (money deducted)
      */
     private String formatSenderNotification(boolean success, BigDecimal amount,
-                                            String receiverAccountId, String status, String message) {
+                                            String receiverAccountNumber, String status, String message) {
         StringBuilder sb = new StringBuilder();
 
         if (success) {
@@ -147,7 +146,7 @@ public class NotificationListener {
             if (amount != null) {
                 sb.append("Amount: -").append(amount).append(" VND\n");
             }
-            sb.append("To: ").append(receiverAccountId).append("\n");
+            sb.append("To: ").append(receiverAccountNumber).append("\n");
         } else {
             sb.append("Your transaction has failed.\n");
             if (amount != null) {
@@ -167,14 +166,14 @@ public class NotificationListener {
     /**
      * Format receiver notification message (money received)
      */
-    private String formatReceiverNotification(BigDecimal amount, String senderAccountId) {
+    private String formatReceiverNotification(BigDecimal amount, String senderAccountNumber) {
         StringBuilder sb = new StringBuilder();
 
         sb.append("You have received money!\n");
         if (amount != null) {
             sb.append("Amount: +").append(amount).append(" VND\n");
         }
-        sb.append("From: ").append(senderAccountId).append("\n");
+        sb.append("From: ").append(senderAccountNumber).append("\n");
         sb.append("Status: COMPLETED\n");
 
         return sb.toString();
@@ -213,7 +212,7 @@ public class NotificationListener {
     private void sendEmailNotification(String userId, UserPreference userPreference,
                                        String transactionId, String title, String content,
                                        String status, BigDecimal amount, boolean success,
-                                       String counterPartyLabel, String counterPartyAccountId) {
+                                       String counterPartyLabel, String counterPartyAccountNumber) {
         if (userPreference.isEmailNotificationEnabled() &&
                 userPreference.getEmail() != null &&
                 !userPreference.getEmail().isEmpty()) {
@@ -231,7 +230,7 @@ public class NotificationListener {
                         .build());
                 additionalInfo.add(EmailNotificationRequest.InfoRow.builder()
                         .label(counterPartyLabel + ": ")
-                        .value(counterPartyAccountId)
+                        .value(counterPartyAccountNumber)
                         .build());
                 additionalInfo.add(EmailNotificationRequest.InfoRow.builder()
                         .label("Status: ")
