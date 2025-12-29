@@ -9,11 +9,13 @@ import com.uit.notificationservice.mapper.NotificationMessageMapper;
 import com.uit.notificationservice.service.NotificationService;
 import com.uit.sharedkernel.api.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/notifications")
 @RequiredArgsConstructor
@@ -36,22 +38,17 @@ public class NotificationController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<SendNotificationResponse>> sendNotification(@RequestBody SendNotificationRequest request) throws FirebaseMessagingException {
-//        SendNotificationRequest mockRequest = new SendNotificationRequest(
-//                "userId",
-//                "Fortress Bank Notification",
-//                "Money transferred: " + "-" + 500000 + "\n" +
-//                        "Remaining Balance: " + 3000000,
-//                null,
-//                "TRANSACTION",
-//                false,
-//                new Date(),
-//                "eDR-JhTcSdedDcsVF4kieg:APA91bGccMdfvZXiSS1qMyiVUsvY8h6OUbeCLZ5o5DBD16PEXb5CO1IaQtLqMEUl0b93fZHD_NbbwO_nJX9F-BMsVlCSQm7I3D9bmOeCuG3O2PQxmgwvtcI"
-//        );
 
         NotificationMessage notification = notificationService.createAndSendNotification(request);
-//        NotificationMessage notification = notificationService.createAndSendNotification(mockRequest);
 
         SendNotificationResponse responseResult = mapper.toResponseDto(notification);
+        return ResponseEntity.ok(ApiResponse.success(responseResult));
+    }
+
+    @PutMapping("/{notificationId}")
+    public ResponseEntity<ApiResponse<SendNotificationResponse>> markAsRead(@PathVariable("notificationId") String notificationId) {
+        NotificationMessage response = notificationService.markAsRead(notificationId);
+        SendNotificationResponse responseResult = mapper.toResponseDto(response);
         return ResponseEntity.ok(ApiResponse.success(responseResult));
     }
 }

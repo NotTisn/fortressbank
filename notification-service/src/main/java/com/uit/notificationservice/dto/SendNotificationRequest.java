@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Data
@@ -18,10 +19,10 @@ public class SendNotificationRequest {
     private String image;
     private String type;
     private boolean isRead;
-    private Date sentAt;
+    private LocalDateTime sentAt;
     private String deviceToken;
 
-    public SendNotificationRequest(String userId, String title, String content, String image, String type, boolean isRead, Date sentAt) {
+    public SendNotificationRequest(String userId, String title, String content, String image, String type, boolean isRead, LocalDateTime sentAt) {
         this.userId = userId;
         this.title = title;
         this.content = content;
