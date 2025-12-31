@@ -3,6 +3,7 @@ package com.uit.notificationservice.dto;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.util.Date;
 
 @Data
@@ -14,6 +15,7 @@ public class SendNotificationResponse {
     private String content;
     private String image;
     private String type;
-    private boolean isRead;
-    private Date sentAt;
+    private boolean read;
+    private LocalDateTime sentAt;
+    private LocalDateTime readAt;
 }

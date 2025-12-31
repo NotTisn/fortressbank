@@ -30,7 +30,8 @@ public enum ErrorCode {
     OTP_RESEND_COOLDOWN(429, "Resend OTP cooldown period has not passed", HttpStatus.TOO_MANY_REQUESTS),
 
     /* Notification */
-    USER_PREFERENCE_NOT_FOUND(404, "User preference not found", HttpStatus.NOT_FOUND);
+    USER_PREFERENCE_NOT_FOUND(404, "User preference not found", HttpStatus.NOT_FOUND),
+    NOTIF_NOT_FOUND(404, "Notification not found", HttpStatus.NOT_FOUND);
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
         this.code = code;
