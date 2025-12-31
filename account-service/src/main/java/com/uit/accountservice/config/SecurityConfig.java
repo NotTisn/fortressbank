@@ -58,6 +58,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                 // Internal endpoints - should only be accessible via service mesh
                 // SECURITY NOTE: In production, these should be protected by network policies
                 .requestMatchers("/accounts/internal/**").permitAll()
+                .requestMatchers("/cards/internal/**").permitAll()
                 // Public endpoints - no authentication required
                 .requestMatchers("/accounts/public/**").permitAll()
                 // Actuator health check

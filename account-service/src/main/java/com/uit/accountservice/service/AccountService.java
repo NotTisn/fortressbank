@@ -417,12 +417,16 @@ public class AccountService {
 
         // Determine account number based on accountNumberType
         if ("PHONE_NUMBER".equals(request.accountNumberType())) {
-            // Auto-fetch phone number from user-service
-            String phoneNumber = fetchPhoneNumberFromUserService(userId);
-
-            if (phoneNumber == null || phoneNumber.isEmpty()) {
-                throw new AppException(ErrorCode.BAD_REQUEST,
-                    "User does not have a phone number registered. Please update your profile first or use AUTO_GENERATE.");
+            // Use phone number from request if provided, otherwise fetch from user-service
+            String phoneNumber;
+            if (request.phoneNumber() != null && !request.phoneNumber().isEmpty()) {
+                phoneNumber = request.phoneNumber();
+            } else {
+                phoneNumber = fetchPhoneNumberFromUserService(userId);
+                if (phoneNumber == null || phoneNumber.isEmpty()) {
+                    throw new AppException(ErrorCode.BAD_REQUEST,
+                        "User does not have a phone number registered. Please update your profile first or use AUTO_GENERATE.");
+                }
             }
 
             accountNumber = phoneNumber;

@@ -1,8 +1,12 @@
 package com.uit.userservice.controller;
 
 import com.uit.sharedkernel.api.ApiResponse;
+import com.uit.userservice.dto.request.AdminCreateUserRequest;
+import com.uit.userservice.dto.request.AdminUpdateUserRequest;
+import com.uit.userservice.dto.response.AdminCreateUserResponse;
 import com.uit.userservice.dto.response.AdminUserResponse;
 import com.uit.userservice.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -44,5 +48,20 @@ public class AdminController {
     public ApiResponse<String> unlockUser(@PathVariable("userId") String userId) {
         userService.unlockUser(userId);
         return ApiResponse.success("User account has been unlocked successfully.");
+    }
+
+    // API tạo user (bao gồm account và card): POST /admin/users
+    @PostMapping
+    public ApiResponse<AdminCreateUserResponse> createUser(@Valid @RequestBody AdminCreateUserRequest request) {
+        return ApiResponse.success(userService.createUserByAdmin(request));
+    }
+
+    // API cập nhật user: PUT /admin/users/{userId}
+    @PutMapping("/{userId}")
+    public ApiResponse<AdminUserResponse> updateUser(
+            @PathVariable("userId") String userId,
+            @Valid @RequestBody AdminUpdateUserRequest request
+    ) {
+        return ApiResponse.success(userService.updateUserByAdmin(userId, request));
     }
 }
