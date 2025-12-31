@@ -110,6 +110,7 @@ public class SecurityConfig implements WebMvcConfigurer {
             }
             
             // Convert to Spring Security authorities with ROLE_ prefix
+            // NOTE: Do NOT uppercase - Spring Security's hasRole('admin') expects 'ROLE_admin' not 'ROLE_ADMIN'
             return roles.stream()
                     .map(roleName -> "ROLE_" + roleName.toUpperCase())
                     .map(SimpleGrantedAuthority::new)
