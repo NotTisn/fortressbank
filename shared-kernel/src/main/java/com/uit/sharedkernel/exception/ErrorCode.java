@@ -18,6 +18,8 @@ public enum ErrorCode {
     USER_ALREADY_EXISTS(409, "User already existed", HttpStatus.CONFLICT),
     UNAUTHORIZED(401, "Unauthorized access", HttpStatus.UNAUTHORIZED),
     USER_NOT_FOUND(404, "User not found", HttpStatus.NOT_FOUND),
+    FACE_VERIFICATION_FAILED(400, "Face verification failed", HttpStatus.BAD_REQUEST),
+    INVALID_FACE_DATA(400, "Invalid face data provided", HttpStatus.BAD_REQUEST),
 
     /* Transaction */
     TRANSACTION_NOT_FOUND(404, "Transaction not found", HttpStatus.NOT_FOUND),
@@ -25,7 +27,11 @@ public enum ErrorCode {
 
     /* OTP */
     OTP_NOT_FOUND(404, "OTP data not found or already used", HttpStatus.NOT_FOUND),
-    OTP_RESEND_COOLDOWN(429, "Resend OTP cooldown period has not passed", HttpStatus.TOO_MANY_REQUESTS);
+    OTP_RESEND_COOLDOWN(429, "Resend OTP cooldown period has not passed", HttpStatus.TOO_MANY_REQUESTS),
+
+    /* Notification */
+    USER_PREFERENCE_NOT_FOUND(404, "User preference not found", HttpStatus.NOT_FOUND),
+    NOTIF_NOT_FOUND(404, "Notification not found", HttpStatus.NOT_FOUND);
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {
         this.code = code;

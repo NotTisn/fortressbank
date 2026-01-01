@@ -7,7 +7,7 @@ set -e
 KEYCLOAK_URL="${KEYCLOAK_URL:-http://localhost:8888}"
 REALM="${REALM:-fortressbank-realm}"
 CLIENT_ID="${CLIENT_ID:-kong}"
-CLIENT_SECRET="${CLIENT_SECRET:-XLODsjH5G3f9iqGftbrkdHeNw3NVfNdZ}"
+CLIENT_SECRET="${CLIENT_SECRET:-pmFStZwGO8sb0mBDkZmP5niE3wmEELqe}"
 
 if [ "$#" -lt 2 ]; then
     echo "Usage: $0 <username> <password>"

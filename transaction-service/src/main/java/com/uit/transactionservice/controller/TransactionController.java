@@ -53,6 +53,7 @@ public class TransactionController {
             
             if (userInfo != null) {
                 userId = (String) userInfo.get("sub");
+                phoneNumber= (String) userInfo.get("phoneNumber");
                 log.info("User ID from token: {}", userId);
             } else {
                 log.warn("No JWT token found, using default test user");
@@ -113,29 +114,46 @@ public class TransactionController {
 
     /**
      * Get transaction history with pagination and filtering
-     * GET /transactions?page=0&size=20&status=COMPLETED&accountId=xxx
+     * GET /transactions?offset=0&limit=20&status=COMPLETED
      */
     @GetMapping
     // @RequireRole("user")
     public ResponseEntity<ApiResponse<Page<TransactionResponse>>> getTransactions(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) TransactionStatus status,
-            @RequestParam(required = false) String accountId,
-            HttpServletRequest httpRequest) {
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) TransactionStatus status) {
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit, Sort.by("createdAt").descending());
 
         Page<TransactionResponse> transactions;
         if (status != null) {
             transactions = transactionService.getTransactionHistoryByStatus(status, pageable);
-        } else if (accountId != null) {
-            transactions = transactionService.getTransactionHistory(accountId, pageable);
         } else {
-            // If no filter, require accountId parameter
-            throw new IllegalArgumentException("Either status or accountId parameter is required");
+            // If no filter, require status parameter (or return empty/all if intended for admin)
+            throw new IllegalArgumentException("Status parameter is required for general search");
         }
 
+        return ResponseEntity.ok(ApiResponse.success(transactions));
+    }
+
+    /**
+     * Get transaction history for a specific account number (Infinite Scroll)
+     * GET /transactions/{accountNumber}/history?offset=0&limit=10&type=SENT
+     */
+    @GetMapping("/{accountNumber}/history")
+    // @RequireRole("user")
+    public ResponseEntity<ApiResponse<Page<TransactionResponse>>> getAccountTransactionHistory(
+            @PathVariable String accountNumber,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(required = false) String type) {
+
+        int page = offset / limit;
+        Pageable pageable = PageRequest.of(page, limit, Sort.by("createdAt").descending());
+        
+        Page<TransactionResponse> transactions = transactionService.getTransactionHistory(accountNumber, type, pageable);
+        
         return ResponseEntity.ok(ApiResponse.success(transactions));
     }
 

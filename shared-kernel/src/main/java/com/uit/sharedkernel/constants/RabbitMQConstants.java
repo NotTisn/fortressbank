@@ -10,10 +10,10 @@ public class RabbitMQConstants {
     public static final String MONEY_TRANSFERRED = "money.transferred";
     public static final String AUDIT_LOG = "audit.log";
     public static final String OTP_ROUTING_KEY = "otp.generated";
-    public static final String NOTIFICATION_EVENT_KEY = "notification.event";
+    public static final String TRANSACTION_SUCCESS = "transaction.success";
     
     // Queues
-    public static final String NOTIFICATION_QUEUE = "notification-queue";
+    public static final String TRANSACTION_QUEUE = "transaction-queue";
     public static final String AUDIT_QUEUE = "audit.queue";
     public static final String OTP_QUEUE = "notification.otp.queue";
 
@@ -21,11 +21,6 @@ public class RabbitMQConstants {
     public static final String USER_CREATED_QUEUE = "user.created.queue";
     public static final String USER_CREATED_ROUTING_KEY = "user.created";
 
-    public static final String NOTIFICATION_TRANSFER_QUEUE = "notification.transfer.queue";
-
-    public static final String NOTIFICATION_EXCHANGE = "notification.exchange";
-
-    public static final String NOTIF_TRANSFER_CREATED_KEY = "notification.transfer.created";
     private RabbitMQConstants() {
         // Prevent instantiation
     }

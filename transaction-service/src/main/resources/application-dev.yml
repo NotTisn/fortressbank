@@ -22,7 +22,7 @@ services:
 
 # JWT Configuration
 jwt:
-  issuer-uri: ${JWT_ISSUER_URI:http://localhost:8888/realms/fortressbank-realm}
+  issuer-uri: http://localhost:8888/realms/fortressbank-realm
 
 # Eureka Configuration
 eureka:

@@ -22,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmailService {
 
+
     private final JavaMailSender mailSender;
 
     @Value("${app.email.from-email:noreply@fortressbank.com}")

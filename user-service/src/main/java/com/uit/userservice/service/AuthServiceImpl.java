@@ -12,10 +12,14 @@ import com.uit.userservice.client.CreateAccountInternalRequest;
 import com.uit.userservice.dto.request.*;
 import com.uit.userservice.dto.response.AccountDto;
 import com.uit.userservice.dto.response.CardDto;
+import com.uit.userservice.dto.response.FaceRegistrationResult;
 import com.uit.userservice.dto.response.OtpResponse;
 import com.uit.userservice.dto.response.TokenResponse;
 import com.uit.userservice.dto.response.UserResponse;
 import com.uit.userservice.dto.response.ValidationResponse;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 import com.uit.userservice.entity.User;
 import com.uit.userservice.keycloak.KeycloakClient;
 import com.uit.userservice.repository.UserRepository;
@@ -42,6 +46,7 @@ public class AuthServiceImpl implements AuthService {
     private final org.springframework.amqp.rabbit.core.RabbitTemplate rabbitTemplate;
     private final EmailService emailService;
     private final AccountClient accountClient;
+    private final FaceIdService faceIdService;
 
     // ==================== NEW MULTI-STEP REGISTRATION FLOW ====================
 
@@ -159,7 +164,8 @@ public class AuthServiceImpl implements AuthService {
                 user.getCitizenId(),
                 user.getDob(),
                 user.getPhoneNumber(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getIsFaceRegistered()
         );
     }
 
@@ -304,5 +310,17 @@ public class AuthServiceImpl implements AuthService {
 
         // reset password
         keycloakClient.resetPassword(userId, request.newPassword());
+    }
+
+    @Override
+    public FaceRegistrationResult registerFacePublic(String userId, List<MultipartFile> files) {
+        // Verify user exists
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        log.info("Public face registration request for user: {}", userId);
+
+        // Delegate to FaceIdService
+        return faceIdService.registerFace(userId, files);
     }
 }

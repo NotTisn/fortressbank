@@ -1,0 +1,41 @@
+# This file is for approval restriction
+
+# =======================================================
+# LUẬT CHUNG: AI DUYỆT CŨNG ĐƯỢC (NHƯNG ƯU TIÊN TECH LEAD)
+# =======================================================
+# Mọi file không được định nghĩa bên dưới sẽ gọi Tech Lead
+* @bighousevn
+
+# =======================================================
+# 1. HẠ TẦNG (Dockerfile, Config) - Rất quan trọng
+# =======================================================
+# Cần Tech Lead HOẶC bạn Dev Infra duyệt là được.
+# Ai rảnh thì duyệt để merge cho nhanh.
+/discovery/             @bighousevn @anhlandibo
+/config-server/         @bighousevn @anhlandibo
+docker-compose.yml      @bighousevn @anhlandibo
+Dockerfile.services     @bighousevn @anhlandibo
+.github/                @bighousevn
+
+# =======================================================
+# 2. CORE SERVICES (User, Account)
+# =======================================================
+# Giao cho Dev A và Dev B làm chính.
+# Tech Lead được tag vào để biết, nhưng Dev A/B duyệt chéo nhau được.
+# Ví dụ: Dev A code xong, Dev B review -> Merge. (Tech Lead không cần can thiệp nếu bận)
+/user-service/          @bighousevn @dev-A @anhlandibo
+/account-service/       @bighousevn @dev-A @anhlandibo
+
+# =======================================================
+# 3. TRANSACTION (Tiền nong - Nhạy cảm)
+# =======================================================
+# Riêng cái này không cho Junior duyệt.
+# Bắt buộc phải là Senior HOẶC Tech Lead.
+/transaction-service/   @bighousevn @anhlandibo
+
+# =======================================================
+# 4. SUPPORT SERVICES (Notification, Audit)
+# =======================================================
+# Mấy cái này ít rủi ro, cho các bạn Junior tập review cũng được.
+/notification-service/  @bighousevn @dev-A @anhlandibo
+/audit-service/         @bighousevn @dev-A @anhlandibo

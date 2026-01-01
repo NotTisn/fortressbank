@@ -2,14 +2,21 @@ package com.uit.userservice.controller;
 
 import com.uit.sharedkernel.api.ApiResponse;
 import com.uit.userservice.dto.request.*;
+import com.uit.userservice.dto.response.FaceRegistrationResult;
 import com.uit.userservice.dto.response.OtpResponse;
 import com.uit.userservice.dto.response.TokenResponse;
 import com.uit.userservice.dto.response.UserResponse;
 import com.uit.userservice.dto.response.ValidationResponse;
 import com.uit.userservice.service.AuthService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
+
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/auth")
@@ -55,5 +62,19 @@ public class AuthController {
     @PostMapping("/refresh")
     public ApiResponse<TokenResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         return ApiResponse.success(authService.refresh(request));
+    }
+
+    @PostMapping(value = "/register-face", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<FaceRegistrationResult> registerFace(
+            @RequestPart("user_id") @NotBlank String userId,
+            @RequestPart("files") List<MultipartFile> files
+    ) {
+        var result = authService.registerFacePublic(userId, files);
+
+        if (!result.isSuccess()) {
+            return ApiResponse.error(400, result.getMessage(), null);
+        }
+
+        return ApiResponse.success(result);
     }
 }

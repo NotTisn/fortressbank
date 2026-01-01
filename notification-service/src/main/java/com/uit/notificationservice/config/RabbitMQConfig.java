@@ -9,8 +9,6 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -33,13 +31,13 @@ public class RabbitMQConfig {
     // Queue for OTP notifications (otp.generated events)
     @Bean
     public Queue otpQueue() {
-        return new Queue("notification.otp.queue", true);
+        return new Queue(RabbitMQConstants.OTP_QUEUE, true);
     }
 
     // Queue for transaction completion/failure notifications
     @Bean
-    public Queue transactionNotificationQueue() {
-        return new Queue(RabbitMQConstants.NOTIFICATION_QUEUE, true);
+    public Queue transactionQueue() {
+        return new Queue(RabbitMQConstants.TRANSACTION_QUEUE, true);
     }
 
     // Binding: OTP events -> OTP Queue
@@ -47,17 +45,22 @@ public class RabbitMQConfig {
     public Binding otpBinding() {
         return BindingBuilder.bind(otpQueue())
                 .to(transactionExchange())
-                .with("otp.generated");
+                .with(RabbitMQConstants.OTP_ROUTING_KEY);
     }
 
     // Binding: Transaction notifications -> Transaction Notification Queue
     // Matches routing keys: notification.TransactionCompleted, notification.TransactionFailed, etc.
     @Bean
     public Binding transactionNotificationBinding() {
-        return BindingBuilder.bind(transactionNotificationQueue())
+        return BindingBuilder.bind(transactionQueue())
                 .to(transactionExchange())
-                .with("notification.*");
+                .with("transaction.*");
     }
+
+//    @Bean
+//    public Binding notificationBinding() {
+//        return BindingBuilder.bind();
+//    }
 
     @Bean
     public MessageConverter jsonMessageConverter() {

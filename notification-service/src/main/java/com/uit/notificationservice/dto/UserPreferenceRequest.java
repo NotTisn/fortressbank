@@ -19,7 +19,7 @@ public class UserPreferenceRequest {
     @Email(message = "Invalid email format")
     private String email;
     
-    private List<String> deviceTokens;
+    private String deviceToken;
     
     private Boolean pushNotificationEnabled;
     

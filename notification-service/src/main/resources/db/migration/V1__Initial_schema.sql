@@ -44,6 +44,7 @@ CREATE TABLE user_preference (
     user_id VARCHAR(36) PRIMARY KEY,
     phone_number VARCHAR(20),
     email VARCHAR(255),
+    device_token VARCHAR(500),
     push_notification_enabled BOOLEAN NOT NULL DEFAULT TRUE,
     sms_notification_enabled BOOLEAN NOT NULL DEFAULT FALSE,
     email_notification_enabled BOOLEAN NOT NULL DEFAULT FALSE
@@ -54,15 +55,15 @@ CREATE TABLE user_preference (
 -- Description: Stores Firebase device tokens for push notifications
 -- One user can have multiple devices (phones, tablets, etc.)
 -- ============================================================================
-CREATE TABLE user_device_tokens (
-    user_id VARCHAR(36) NOT NULL,
-    device_token VARCHAR(500) NOT NULL,
-    PRIMARY KEY (user_id, device_token),
-    CONSTRAINT fk_user_device_tokens_user_id 
-        FOREIGN KEY (user_id) 
-        REFERENCES user_preference(user_id) 
-        ON DELETE CASCADE
-);
-
--- Index for faster lookup by device token
-CREATE INDEX idx_user_device_tokens_token ON user_device_tokens(device_token);
+-- CREATE TABLE user_device_tokens (
+--     user_id VARCHAR(36) NOT NULL,
+--     device_token VARCHAR(500) NOT NULL,
+--     PRIMARY KEY (user_id, device_token),
+--     CONSTRAINT fk_user_device_tokens_user_id
+--         FOREIGN KEY (user_id)
+--         REFERENCES user_preference(user_id)
+--         ON DELETE CASCADE
+-- );
+--
+-- -- Index for faster lookup by device token
+-- CREATE INDEX idx_user_device_tokens_token ON user_device_tokens(device_token);

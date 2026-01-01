@@ -34,6 +34,9 @@ public class User {
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    @Column()
+    private Boolean isFaceRegistered = false;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

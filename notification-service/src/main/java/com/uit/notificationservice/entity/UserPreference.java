@@ -24,11 +24,8 @@ public class UserPreference {
     @Column(name = "email")
     private String email;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_device_tokens",
-            joinColumns = @JoinColumn(name = "user_id"))
     @Column(name = "device_token")
-    private List<String> deviceTokens = new ArrayList<>();
+    private String deviceToken;
 
     @Column(nullable = false, name = "push_notification_enabled")
     private boolean pushNotificationEnabled;

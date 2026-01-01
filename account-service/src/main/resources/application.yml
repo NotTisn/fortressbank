@@ -1,6 +1,14 @@
 spring:
   application:
     name: account-service
+
+  # RabbitMQ configuration for local development
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+
   cloud:
     config:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8889}
@@ -15,6 +23,10 @@ spring:
   sql:
     init:
       mode: never
+
+# Stripe Configuration (Required by StripeConfig bean)
+stripe:
+  api-key: ${STRIPE_SECRET_KEY:sk_test_placeholder}
 
 # JWT Configuration for SOAP Security
 jwt:

@@ -129,7 +129,8 @@ public class UserServiceImpl implements UserService {
                 user.getCitizenId(),
                 user.getDob(),
                 user.getPhoneNumber(),
-                user.getCreatedAt()
+                user.getCreatedAt(),
+                user.getIsFaceRegistered()
         );
     }
 

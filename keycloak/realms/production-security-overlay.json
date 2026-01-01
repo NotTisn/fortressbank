@@ -1,17 +1,5 @@
 {
-  "_comment": "FORTRESSBANK PRODUCTION KEYCLOAK REALM SECURITY OVERLAY",
-  "_instructions": [
-    "This file contains security settings to import/apply on top of the base realm.",
-    "Import via Keycloak Admin Console or use the Admin REST API.",
-    "These settings enable production-grade security controls."
-  ],
-  
   "realm": "fortressbank-realm",
-  
-  "_section": "=== SSL/TLS SETTINGS ===",
-  "sslRequired": "all",
-  
-  "_section": "=== BRUTE FORCE PROTECTION ===",
   "bruteForceProtected": true,
   "permanentLockout": false,
   "maxFailureWaitSeconds": 900,
@@ -21,7 +9,6 @@
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 5,
   
-  "_section": "=== TOKEN LIFESPANS (Shorter for Production) ===",
   "accessTokenLifespan": 300,
   "accessTokenLifespanForImplicitFlow": 300,
   "ssoSessionIdleTimeout": 900,
@@ -35,7 +22,6 @@
   "actionTokenGeneratedByAdminLifespan": 43200,
   "actionTokenGeneratedByUserLifespan": 300,
   
-  "_section": "=== REGISTRATION/SELF-SERVICE ===",
   "registrationAllowed": false,
   "registrationEmailAsUsername": false,
   "rememberMe": false,
@@ -45,10 +31,8 @@
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   
-  "_section": "=== PASSWORD POLICY ===",
   "passwordPolicy": "length(12) and digits(1) and lowerCase(1) and upperCase(1) and specialChars(1) and notUsername and passwordHistory(5)",
   
-  "_section": "=== OTP POLICY (For MFA) ===",
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA256",
   "otpPolicyDigits": 6,
@@ -56,7 +40,6 @@
   "otpPolicyLookAheadWindow": 1,
   "otpPolicyPeriod": 30,
   
-  "_section": "=== EVENTS/AUDIT LOGGING ===",
   "eventsEnabled": true,
   "eventsExpiration": 7776000,
   "eventsListeners": ["jboss-logging"],

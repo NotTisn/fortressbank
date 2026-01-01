@@ -125,3 +125,14 @@ eureka:
     instance-id: ${spring.application.name}:${random.value}
     lease-renewal-interval-in-seconds: 10
     lease-expiration-duration-in-seconds: 30
+
+stripe:
+  api-key: ${STRIPE_SECRET_KEY}
+  webhook-secret: ${STRIPE_WEBHOOK_SECRET}
+  connect-account-id: ${STRIPE_CONNECT_ACCOUNT_ID}
+  payout:
+    timeout-seconds: 30
+    currency: ${STRIPE_CURRENCY:usd}
+    retry:
+      max-attempts: 3
+      backoff-delay-ms: 2000

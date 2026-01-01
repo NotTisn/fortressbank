@@ -6,44 +6,33 @@ import com.uit.transactionservice.client.dto.InternalTransferRequest;
 import com.uit.transactionservice.client.dto.InternalTransferResponse;
 import com.uit.transactionservice.exception.AccountServiceException;
 import com.uit.transactionservice.exception.InsufficientBalanceException;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
-import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
-import java.time.Duration;
+import java.util.Map;
 
 /**
  * Client for synchronous communication with Account Service
+ * Uses FeignClient for service discovery and inter-service communication
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class AccountServiceClient {
 
-    private final RestTemplate restTemplate;
-
-    @Value("${services.account-service.url:http://localhost:4001}")
-    private String accountServiceUrl;
-
-    @Value("${services.account-service.timeout:5000}")
-    private long timeout;
+    private final AccountServiceFeignClient accountServiceFeignClient;
 
     /**
      * Debit (subtract) amount from an account
-     * This is a synchronous blocking call with timeout
-     * 
+     * This is a synchronous blocking call
+     *
      * SECURITY FIX (2024-12): Updated to use /internal/ path - service-to-service only
      */
     public AccountBalanceResponse debitAccount(String accountId, BigDecimal amount, String transactionId, String description) {
-        String url = accountServiceUrl + "/accounts/internal/" + accountId + "/debit";
-        
         AccountBalanceRequest request = AccountBalanceRequest.builder()
                 .accountId(accountId)
                 .amount(amount)
@@ -54,46 +43,35 @@ public class AccountServiceClient {
         log.info("Debiting account {} with amount {} for transaction {}", accountId, amount, transactionId);
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<AccountBalanceRequest> entity = new HttpEntity<>(request, headers);
+            AccountBalanceResponse response = accountServiceFeignClient.debitAccount(accountId, request);
+            log.info("Successfully debited account {} - New balance: {}", accountId, response.getNewBalance());
+            return response;
 
-            ResponseEntity<AccountBalanceResponse> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    AccountBalanceResponse.class
-            );
+        } catch (FeignException.BadRequest e) {
+            log.error("Bad request while debiting account {}: {}", accountId, e.getMessage());
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.info("Successfully debited account {} - New balance: {}", accountId, response.getBody().getNewBalance());
-                return response.getBody();
-            } else {
-                log.error("Unexpected response from account service: {}", response.getStatusCode());
-                throw new AccountServiceException("Unexpected response from account service");
-            }
-
-        } catch (HttpClientErrorException e) {
-            log.error("Client error while debiting account {}: {} - {}", accountId, e.getStatusCode(), e.getResponseBodyAsString());
-            
             // Handle specific business errors
-            if (e.getStatusCode() == HttpStatus.BAD_REQUEST && e.getResponseBodyAsString().contains("Insufficient balance")) {
+            String responseBody = e.contentUTF8();
+            if (responseBody.contains("Insufficient balance")) {
                 throw new InsufficientBalanceException("Insufficient balance in account: " + accountId);
-            } else if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-                throw new AccountServiceException("Account not found: " + accountId);
-            } else if (e.getStatusCode() == HttpStatus.LOCKED) {
-                throw new AccountServiceException("Account is locked: " + accountId);
             }
-            
             throw new AccountServiceException("Failed to debit account: " + e.getMessage(), e);
 
-        } catch (HttpServerErrorException e) {
-            log.error("Server error from account service: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+        } catch (FeignException.NotFound e) {
+            log.error("Account not found: {}", accountId);
+            throw new AccountServiceException("Account not found: " + accountId, e);
+
+        } catch (FeignException.ServiceUnavailable e) {
+            log.error("Account service is unavailable: {}", e.getMessage());
             throw new AccountServiceException("Account service is temporarily unavailable", e);
 
-        } catch (ResourceAccessException e) {
-            log.error("Timeout or connection error while calling account service", e);
-            throw new AccountServiceException("Cannot connect to account service - timeout", e);
+        } catch (FeignException e) {
+            log.error("Feign error while debiting account {}: {} - {}", accountId, e.status(), e.getMessage());
+
+            if (e.status() == 423) { // LOCKED
+                throw new AccountServiceException("Account is locked: " + accountId, e);
+            }
+            throw new AccountServiceException("Failed to debit account: " + e.getMessage(), e);
 
         } catch (Exception e) {
             log.error("Unexpected error while debiting account", e);
@@ -103,11 +81,9 @@ public class AccountServiceClient {
 
     /**
      * Credit (add) amount to an account
-     * This is a synchronous blocking call with timeout
+     * This is a synchronous blocking call
      */
     public AccountBalanceResponse creditAccount(String accountId, BigDecimal amount, String transactionId, String description) {
-        String url = accountServiceUrl + "/accounts/" + accountId + "/credit";
-        
         AccountBalanceRequest request = AccountBalanceRequest.builder()
                 .accountId(accountId)
                 .amount(amount)
@@ -118,43 +94,25 @@ public class AccountServiceClient {
         log.info("Crediting account {} with amount {} for transaction {}", accountId, amount, transactionId);
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<AccountBalanceRequest> entity = new HttpEntity<>(request, headers);
+            AccountBalanceResponse response = accountServiceFeignClient.creditAccount(accountId, request);
+            log.info("Successfully credited account {} - New balance: {}", accountId, response.getNewBalance());
+            return response;
 
-            ResponseEntity<AccountBalanceResponse> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    AccountBalanceResponse.class
-            );
+        } catch (FeignException.NotFound e) {
+            log.error("Account not found: {}", accountId);
+            throw new AccountServiceException("Account not found: " + accountId, e);
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.info("Successfully credited account {} - New balance: {}", accountId, response.getBody().getNewBalance());
-                return response.getBody();
-            } else {
-                log.error("Unexpected response from account service: {}", response.getStatusCode());
-                throw new AccountServiceException("Unexpected response from account service");
-            }
-
-        } catch (HttpClientErrorException e) {
-            log.error("Client error while crediting account {}: {} - {}", accountId, e.getStatusCode(), e.getResponseBodyAsString());
-            
-            if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-                throw new AccountServiceException("Account not found: " + accountId);
-            } else if (e.getStatusCode() == HttpStatus.LOCKED) {
-                throw new AccountServiceException("Account is locked: " + accountId);
-            }
-            
-            throw new AccountServiceException("Failed to credit account: " + e.getMessage(), e);
-
-        } catch (HttpServerErrorException e) {
-            log.error("Server error from account service: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+        } catch (FeignException.ServiceUnavailable e) {
+            log.error("Account service is unavailable: {}", e.getMessage());
             throw new AccountServiceException("Account service is temporarily unavailable", e);
 
-        } catch (ResourceAccessException e) {
-            log.error("Timeout or connection error while calling account service", e);
-            throw new AccountServiceException("Cannot connect to account service - timeout", e);
+        } catch (FeignException e) {
+            log.error("Feign error while crediting account {}: {} - {}", accountId, e.status(), e.getMessage());
+
+            if (e.status() == 423) { // LOCKED
+                throw new AccountServiceException("Account is locked: " + accountId, e);
+            }
+            throw new AccountServiceException("Failed to credit account: " + e.getMessage(), e);
 
         } catch (Exception e) {
             log.error("Unexpected error while crediting account", e);
@@ -168,7 +126,7 @@ public class AccountServiceClient {
      */
     public void rollbackDebit(String accountId, BigDecimal amount, String transactionId) {
         log.warn("Rolling back debit for account {} - amount: {} - transaction: {}", accountId, amount, transactionId);
-        
+
         try {
             creditAccount(accountId, amount, transactionId, "Rollback debit for failed transaction");
         } catch (Exception e) {
@@ -181,49 +139,38 @@ public class AccountServiceClient {
      * Get account details by account number.
      * Returns Map with account info if found, or null if not found (404).
      */
-    public java.util.Map<String, Object> getAccountByNumber(String accountNumber) {
-        String url = accountServiceUrl + "/accounts/by-number/" + accountNumber;
+    public Map<String, Object> getAccountByNumber(String accountNumber) {
         log.info("Resolving account number: {}", accountNumber);
 
         try {
-            ResponseEntity<java.util.Map> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    null,
-                    java.util.Map.class
-            );
+            ResponseEntity<Map<String, Object>> response = accountServiceFeignClient.getAccountByNumber(accountNumber);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 return response.getBody();
             }
-        } catch (HttpClientErrorException.NotFound e) {
+            return null;
+
+        } catch (FeignException.NotFound e) {
             log.warn("Account number not found: {}", accountNumber);
             return null;
+
         } catch (Exception e) {
             log.error("Failed to resolve account number {}: {}", accountNumber, e.getMessage());
             throw new AccountServiceException("Failed to resolve account number", e);
         }
-        return null;
     }
 
-    
     /**
      * Get userId by accountId.
      * Safely returns null if account is not found or external, ensuring transaction flow continues.
      */
     public String getUserIdByAccountId(String accountId) {
         if (accountId == null) return null;
-        
-        String url = accountServiceUrl + "/accounts/" + accountId;
+
         log.debug("Resolving userId for account: {}", accountId);
 
         try {
-            ResponseEntity<java.util.Map> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.GET,
-                    null,
-                    java.util.Map.class
-            );
+            ResponseEntity<Map<String, Object>> response = accountServiceFeignClient.getAccountById(accountId);
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 Object userIdObj = response.getBody().get("userId");
@@ -231,14 +178,14 @@ public class AccountServiceClient {
                     return userIdObj.toString();
                 }
             }
-        } catch (HttpClientErrorException.NotFound e) {
+        } catch (FeignException.NotFound e) {
             // Normal for external accounts
             log.warn("Account not found in local DB (likely external): {}", accountId);
         } catch (Exception e) {
             // Suppress other errors to avoid breaking the flow
             log.warn("Failed to resolve userId for account {}: {}", accountId, e.getMessage());
         }
-        
+
         return null;
     }
 
@@ -246,7 +193,7 @@ public class AccountServiceClient {
      * Execute internal transfer atomically (RECOMMENDED).
      * Both debit and credit happen in a single database transaction.
      * Either both succeed or both fail - no partial state.
-     * 
+     *
      * SECURITY FIX (2024-12): Updated to use /internal/ path - service-to-service only
      */
     public InternalTransferResponse executeInternalTransfer(
@@ -255,9 +202,7 @@ public class AccountServiceClient {
             BigDecimal amount,
             String transactionId,
             String description) {
-        
-        String url = accountServiceUrl + "/accounts/internal/transfer";
-        
+
         InternalTransferRequest request = InternalTransferRequest.builder()
                 .transactionId(transactionId)
                 .senderAccountId(fromAccountId)
@@ -266,50 +211,38 @@ public class AccountServiceClient {
                 .description(description)
                 .build();
 
-        log.info("Executing internal transfer - From: {} To: {} Amount: {} TxID: {}", 
+        log.info("Executing internal transfer - From: {} To: {} Amount: {} TxID: {}",
                 fromAccountId, toAccountId, amount, transactionId);
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<InternalTransferRequest> entity = new HttpEntity<>(request, headers);
+            InternalTransferResponse response = accountServiceFeignClient.executeInternalTransfer(request);
 
-            ResponseEntity<InternalTransferResponse> response = restTemplate.exchange(
-                    url,
-                    HttpMethod.POST,
-                    entity,
-                    InternalTransferResponse.class
-            );
+            log.info("Internal transfer completed - TxID: {} - Sender new balance: {} - Receiver new balance: {}",
+                    transactionId,
+                    response.getSenderAccountNewBalance(),
+                    response.getReceiverAccountNewBalance());
+            return response;
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                log.info("Internal transfer completed - TxID: {} - Sender new balance: {} - Receiver new balance: {}", 
-                        transactionId, 
-                        response.getBody().getSenderAccountNewBalance(),
-                        response.getBody().getReceiverAccountNewBalance());
-                return response.getBody();
-            } else {
-                log.error("Unexpected response from account service: {}", response.getStatusCode());
-                throw new AccountServiceException("Unexpected response from account service");
-            }
+        } catch (FeignException.BadRequest e) {
+            log.error("Bad request during internal transfer: {} - {}", e.status(), e.getMessage());
 
-        } catch (HttpClientErrorException e) {
-            log.error("Client error during internal transfer: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
-            
-            if (e.getStatusCode() == HttpStatus.BAD_REQUEST && e.getResponseBodyAsString().contains("Insufficient balance")) {
+            String responseBody = e.contentUTF8();
+            if (responseBody.contains("Insufficient balance")) {
                 throw new InsufficientBalanceException("Insufficient balance in sender account");
-            } else if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
-                throw new AccountServiceException("One or both accounts not found");
             }
-            
             throw new AccountServiceException("Failed to execute internal transfer: " + e.getMessage(), e);
 
-        } catch (HttpServerErrorException e) {
-            log.error("Server error from account service: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+        } catch (FeignException.NotFound e) {
+            log.error("One or both accounts not found during internal transfer");
+            throw new AccountServiceException("One or both accounts not found", e);
+
+        } catch (FeignException.ServiceUnavailable e) {
+            log.error("Account service is unavailable: {}", e.getMessage());
             throw new AccountServiceException("Account service is temporarily unavailable", e);
 
-        } catch (ResourceAccessException e) {
-            log.error("Timeout or connection error while calling account service", e);
-            throw new AccountServiceException("Cannot connect to account service - timeout", e);
+        } catch (FeignException e) {
+            log.error("Feign error during internal transfer: {} - {}", e.status(), e.getMessage());
+            throw new AccountServiceException("Failed to execute internal transfer: " + e.getMessage(), e);
 
         } catch (Exception e) {
             log.error("Unexpected error during internal transfer", e);

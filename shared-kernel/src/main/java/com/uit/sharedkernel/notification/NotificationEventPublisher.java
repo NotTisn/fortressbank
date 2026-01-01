@@ -38,7 +38,7 @@ public class NotificationEventPublisher {
             messageProducer.publish(
                     event,
                     RabbitMQConstants.TRANSACTION_EXCHANGE,
-                    RabbitMQConstants.NOTIFICATION_EVENT_KEY
+                    RabbitMQConstants.TRANSACTION_SUCCESS
             );
 
             log.info("Notification event published for transaction: {}", event.getTransactionId());

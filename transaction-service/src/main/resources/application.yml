@@ -36,10 +36,10 @@ jwt:
   issuer-uri: ${JWT_ISSUER_URI:http://localhost:8888/realms/fortressbank-realm}
 
 # Service Communication Configuration
-# services:
-#   account-service:
-#     url: ${ACCOUNT_SERVICE_URL:http://account-service:4001}
-#     timeout: 5000 # 5 seconds timeout for sync calls
+services:
+  account-service:
+    url: ${ACCOUNT_SERVICE_URL:http://account-service:4001}
+    timeout: 5000 # 5 seconds timeout for sync calls
 
 eureka:
   client:

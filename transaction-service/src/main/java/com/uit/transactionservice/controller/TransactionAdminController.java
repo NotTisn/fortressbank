@@ -19,6 +19,20 @@ import java.util.List;
 public class TransactionAdminController {
 
     private final TransactionFeeService transactionFeeService;
+    private final com.uit.transactionservice.service.TransactionService transactionService;
+
+    /**
+     * Admin Deposit (Top-up) to an account
+     * POST /transactions/admin/deposit
+     */
+    @PostMapping("/deposit")
+    // @RequireRole("admin")
+    public ResponseEntity<ApiResponse<com.uit.transactionservice.dto.response.TransactionResponse>> adminDeposit(
+            @Valid @RequestBody com.uit.transactionservice.dto.request.AdminDepositRequest request) {
+
+        com.uit.transactionservice.dto.response.TransactionResponse response = transactionService.createAdminDeposit(request);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
 
     /**
      * Get all fee configurations

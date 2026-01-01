@@ -19,7 +19,7 @@ import java.util.concurrent.CompletableFuture;
 public class FirebaseMessagingService {
     private final FirebaseMessaging firebaseMessaging;
 
-    public void sendNotification(List<String> deviceTokens, SendNotificationRequest request) throws FirebaseMessagingException {
+    public void sendNotification(String deviceToken, SendNotificationRequest request) throws FirebaseMessagingException {
         Notification notification = Notification
                 .builder()
                 .setTitle(request.getTitle())
@@ -27,21 +27,16 @@ public class FirebaseMessagingService {
                 .setImage(request.getImage())
                 .build();
 
-        List<Message> messages = deviceTokens
-                .stream()
-                .map(token -> {
-                    return Message
-                            .builder()
-                            .setToken(token)
-                            .setNotification(notification)
-//                            .putAllData(msg.get)
-                            .build();
-                }).toList();
+        Message message = Message
+                .builder()
+                .setToken(deviceToken)
+                .setNotification(notification)
+                .build();
 
         CompletableFuture.runAsync(() -> {
             try {
-                firebaseMessaging.sendEach(messages);
-                log.info("Firebase messages sent successfully to {} devices", deviceTokens.size());
+                firebaseMessaging.send(message);
+                log.info("Firebase messages sent successfully to {} devices", deviceToken);
             } catch (FirebaseMessagingException e) {
                 log.error("Failed to send Firebase messages: {}", e.getMessage(), e);
             }

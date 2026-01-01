@@ -12,18 +12,18 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserPreferenceResponse {
-    
+
     private String userId;
-    
+
     private String phoneNumber;
-    
+
     private String email;
-    
-    private List<String> deviceTokens;
-    
+
+    private String deviceToken;
+
     private boolean pushNotificationEnabled;
-    
+
     private boolean smsNotificationEnabled;
-    
+
     private boolean emailNotificationEnabled;
 }

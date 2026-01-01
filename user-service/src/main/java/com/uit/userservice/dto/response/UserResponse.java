@@ -11,5 +11,6 @@ public record UserResponse(
         String citizenId,
         LocalDate dob,
         String phoneNumber,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Boolean isFaceRegistered
 ) { }
