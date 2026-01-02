@@ -7,14 +7,23 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 
-@Component
+/**
+ * DEPRECATED: This filter is no longer used.
+ * JWT authentication is now handled by Spring Security OAuth2 Resource Server.
+ * 
+ * @see com.uit.accountservice.config.SecurityConfig
+ * @see com.uit.accountservice.config.JwtConfig
+ * 
+ * This class is kept for reference but disabled by removing @Component.
+ * Delete this file in a future cleanup.
+ */
+// @Component - DISABLED: Replaced by OAuth2 Resource Server JWT authentication
 public class ParseUserInfoFilter implements Filter {
 
     private final ObjectMapper objectMapper = new ObjectMapper();

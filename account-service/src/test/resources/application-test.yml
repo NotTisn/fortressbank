@@ -43,6 +43,13 @@ spring:
       - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
       - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
 
+  # JWT config for tests (JwtDecoder bean is mocked, but config needed to avoid startup error)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8888/realms/test-realm
+
 eureka:
   client:
     enabled: false

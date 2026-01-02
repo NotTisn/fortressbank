@@ -1,6 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
     password:
@@ -8,9 +8,25 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: true
+  flyway:
+    enabled: false
   h2:
     console:
       enabled: true
+  cloud:
+    config:
+      enabled: false
+
+# Stripe configuration for tests (mocked)
+stripe:
+  api-key: sk_test_dummy_key_for_testing
+  webhook-secret: whsec_test_dummy_secret
+  connect-account-id: acct_test_dummy
+
+# Eureka disabled for tests
+eureka:
+  client:
+    enabled: false
 
 logging:
   level:

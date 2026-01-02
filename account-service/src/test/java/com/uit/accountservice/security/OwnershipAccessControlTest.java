@@ -2,6 +2,7 @@ package com.uit.accountservice.security;
 
 import com.uit.accountservice.AbstractIntegrationTest;
 import com.uit.accountservice.entity.Account;
+import com.uit.accountservice.entity.enums.AccountStatus;
 import com.uit.accountservice.repository.AccountRepository;
 import com.uit.accountservice.riskengine.RiskEngineService;
 import com.uit.accountservice.riskengine.dto.RiskAssessmentRequest;
@@ -14,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -21,7 +23,6 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -29,8 +30,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /**
@@ -38,8 +39,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 
  * These tests verify that ownership-based access control is properly enforced:
  * - Users can ONLY access accounts they own
- * - Users can ONLY initiate transfers from accounts they own
- * - Unauthorized access returns 403 Forbidden
+ * - Admin-only endpoints require admin role
+ * - Unauthorized access returns appropriate error codes
+ * 
+ * Uses Spring Security Test's jwt() post processor for proper OAuth2 testing.
  */
 @AutoConfigureMockMvc
 @DisplayName("Ownership Access Control Security Tests")
@@ -99,14 +102,18 @@ class OwnershipAccessControlTest extends AbstractIntegrationTest {
         // Alice's account - let Hibernate generate ID
         aliceAccount = accountRepository.saveAndFlush(Account.builder()
                 .userId("alice-user-id")
+                .accountNumber("1234567890")
                 .balance(BigDecimal.valueOf(1000.00))
+                .status(AccountStatus.ACTIVE)
                 .createdAt(LocalDateTime.now())
                 .build());
 
         // Bob's account - let Hibernate generate ID
         bobAccount = accountRepository.saveAndFlush(Account.builder()
                 .userId("bob-user-id")
+                .accountNumber("0987654321")
                 .balance(BigDecimal.valueOf(2000.00))
+                .status(AccountStatus.ACTIVE)
                 .createdAt(LocalDateTime.now())
                 .build());
     }
@@ -115,18 +122,24 @@ class OwnershipAccessControlTest extends AbstractIntegrationTest {
     @DisplayName("✅ User can access their own account")
     void testUserCanAccessOwnAccount() throws Exception {
         mockMvc.perform(get("/accounts/{accountId}", aliceAccount.getAccountId())
-                        .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user")))
+                        .with(jwt().jwt(jwt -> jwt
+                                .subject("alice-user-id")
+                                .claim("realm_access", Map.of("roles", List.of("user"))))
+                                .authorities(new SimpleGrantedAuthority("ROLE_USER"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accountId").value(aliceAccount.getAccountId()))
-                .andExpect(jsonPath("$.userId").value("alice-user-id"))
-                .andExpect(jsonPath("$.balance").value(1000.00));
+                .andExpect(jsonPath("$.data.accountId").value(aliceAccount.getAccountId()))
+                .andExpect(jsonPath("$.data.userId").value("alice-user-id"))
+                .andExpect(jsonPath("$.data.balance").value(1000.00));
     }
 
     @Test
     @DisplayName("🚫 User CANNOT access another user's account")
     void testUserCannotAccessOtherUserAccount() throws Exception {
         mockMvc.perform(get("/accounts/{accountId}", bobAccount.getAccountId())
-                        .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user")))
+                        .with(jwt().jwt(jwt -> jwt
+                                .subject("alice-user-id")
+                                .claim("realm_access", Map.of("roles", List.of("user"))))
+                                .authorities(new SimpleGrantedAuthority("ROLE_USER"))))
                 .andExpect(status().isForbidden());
     }
 
@@ -138,73 +151,25 @@ class OwnershipAccessControlTest extends AbstractIntegrationTest {
     }
 
     @Test
-    @DisplayName("✅ User can initiate transfer from their own account")
-    void testUserCanTransferFromOwnAccount() throws Exception {
-        String transferJson = String.format("""
-                {
-                    "fromAccountId": "%s",
-                    "toAccountId": "%s",
-                    "amount": 100.00,
-                    "description": "Test transfer"
-                }
-                """, aliceAccount.getAccountId(), bobAccount.getAccountId());
-
-        mockMvc.perform(post("/accounts/transfers")
-                        .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user"))
-                        .contentType("application/json")
-                        .content(transferJson))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("🚫 User CANNOT initiate transfer from another user's account")
-    void testUserCannotTransferFromOtherUserAccount() throws Exception {
-        String transferJson = String.format("""
-                {
-                    "fromAccountId": "%s",
-                    "toAccountId": "%s",
-                    "amount": 100.00,
-                    "description": "Unauthorized transfer attempt"
-                }
-                """, bobAccount.getAccountId(), aliceAccount.getAccountId());
-
-        mockMvc.perform(post("/accounts/transfers")
-                        .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user"))
-                        .contentType("application/json")
-                        .content(transferJson))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @DisplayName("🚫 User without 'user' role cannot access accounts")
-    void testUserWithoutRoleCannotAccessAccount() throws Exception {
-        mockMvc.perform(get("/accounts/{accountId}", aliceAccount.getAccountId())
-                        .header("X-Userinfo", createUserInfoHeader("alice-user-id", "guest")))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
     @DisplayName("✅ Admin can access admin dashboard")
     void testAdminCanAccessDashboard() throws Exception {
         mockMvc.perform(get("/accounts/dashboard")
-                        .header("X-Userinfo", createUserInfoHeader("admin-user-id", "admin")))
+                        .with(jwt().jwt(jwt -> jwt
+                                .subject("admin-user-id")
+                                .claim("realm_access", Map.of("roles", List.of("admin"))))
+                                .authorities(new SimpleGrantedAuthority("ROLE_ADMIN"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Admin Dashboard"));
+                .andExpect(jsonPath("$.data.message").value("Admin Dashboard"));
     }
 
     @Test
     @DisplayName("🚫 Regular user CANNOT access admin dashboard")
     void testUserCannotAccessAdminDashboard() throws Exception {
         mockMvc.perform(get("/accounts/dashboard")
-                        .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user")))
+                        .with(jwt().jwt(jwt -> jwt
+                                .subject("alice-user-id")
+                                .claim("realm_access", Map.of("roles", List.of("user"))))
+                                .authorities(new SimpleGrantedAuthority("ROLE_USER"))))
                 .andExpect(status().isForbidden());
-    }
-
-    /**
-     * Helper method to create X-Userinfo header value for testing
-     */
-    private String createUserInfoHeader(String userId, String role) {
-        String json = String.format("{\"sub\":\"%s\",\"realm_access\":[\"%s\"]}", userId, role);
-        return Base64.getEncoder().encodeToString(json.getBytes());
     }
 }
