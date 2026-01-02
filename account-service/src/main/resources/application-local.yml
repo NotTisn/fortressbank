@@ -1,0 +1,41 @@
+# Local development profile - overrides Docker hostnames with localhost
+spring:
+  config:
+    import: optional:configserver:http://localhost:8889
+  cloud:
+    config:
+      uri: http://localhost:8889
+  datasource:
+    url: jdbc:postgresql://localhost:5434/accountdb
+    username: postgres
+    password: "123456"
+  data:
+    redis:
+      host: localhost
+      port: 6379
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8888/realms/fortressbank-realm/protocol/openid-connect/certs
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+keycloak:
+  auth-server-url: http://localhost:8888
+  realm: fortressbank-realm
+  client-id: kong
+  client-secret: pmFStZwGO8sb0mBDkZmP5niE3wmEELqe
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
+# Stripe config - use dummy keys for local dev
+stripe:
+  api-key: sk_test_dummy_key_for_local_dev
+  webhook-secret: whsec_dummy_for_local_dev

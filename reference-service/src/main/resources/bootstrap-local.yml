@@ -1,0 +1,6 @@
+# Bootstrap config for local profile
+# Disable legacy ConfigServicePropertySourceLocator - let ConfigServerConfigDataLoader handle it
+spring:
+  cloud:
+    config:
+      enabled: false
