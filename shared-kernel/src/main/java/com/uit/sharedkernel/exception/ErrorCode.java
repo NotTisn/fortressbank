@@ -29,6 +29,12 @@ public enum ErrorCode {
     OTP_NOT_FOUND(404, "OTP data not found or already used", HttpStatus.NOT_FOUND),
     OTP_RESEND_COOLDOWN(429, "Resend OTP cooldown period has not passed", HttpStatus.TOO_MANY_REQUESTS),
 
+    /* Forgot Password */
+    OTP_EXPIRED_OR_NOT_FOUND(400, "OTP has expired or was not found", HttpStatus.BAD_REQUEST),
+    MAX_OTP_ATTEMPTS_EXCEEDED(400, "Maximum OTP verification attempts exceeded", HttpStatus.BAD_REQUEST),
+    VERIFICATION_TOKEN_EXPIRED(400, "Verification token has expired", HttpStatus.BAD_REQUEST),
+    INVALID_VERIFICATION_TOKEN(400, "Invalid verification token", HttpStatus.BAD_REQUEST),
+
     /* Notification */
     USER_PREFERENCE_NOT_FOUND(404, "User preference not found", HttpStatus.NOT_FOUND),
     NOTIF_NOT_FOUND(404, "Notification not found", HttpStatus.NOT_FOUND);

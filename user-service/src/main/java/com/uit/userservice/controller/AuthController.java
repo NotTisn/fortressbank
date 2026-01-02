@@ -64,6 +64,35 @@ public class AuthController {
         return ApiResponse.success(authService.refresh(request));
     }
 
+    // ==================== FORGOT PASSWORD FLOW ====================
+
+    /**
+     * Step 1: Send OTP to phone number for password reset
+     */
+    @PostMapping("/forgot-password/send-otp")
+    public ApiResponse<com.uit.userservice.dto.response.ForgotPasswordOtpResponse> forgotPasswordSendOtp(
+            @Valid @RequestBody ForgotPasswordSendOtpRequest request) {
+        return ApiResponse.success(authService.forgotPasswordSendOtp(request));
+    }
+
+    /**
+     * Step 2: Verify OTP and get verification token
+     */
+    @PostMapping("/forgot-password/verify-otp")
+    public ApiResponse<com.uit.userservice.dto.response.ForgotPasswordVerifyResponse> forgotPasswordVerifyOtp(
+            @Valid @RequestBody ForgotPasswordVerifyOtpRequest request) {
+        return ApiResponse.success(authService.forgotPasswordVerifyOtp(request));
+    }
+
+    /**
+     * Step 3: Reset password with verification token
+     */
+    @PostMapping("/forgot-password/reset")
+    public ApiResponse<com.uit.userservice.dto.response.ForgotPasswordResetResponse> forgotPasswordReset(
+            @Valid @RequestBody ForgotPasswordResetRequest request) {
+        return ApiResponse.success(authService.forgotPasswordReset(request));
+    }
+
     @PostMapping(value = "/register-face", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<FaceRegistrationResult> registerFace(
             @RequestPart("user_id") @NotBlank String userId,

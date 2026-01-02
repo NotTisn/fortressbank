@@ -49,7 +49,7 @@ public class TransactionController {
             @SuppressWarnings("unchecked")
             Map<String, Object> userInfo = (Map<String, Object>) httpRequest.getAttribute("userInfo");
             String userId = "test-user"; // Default for testing
-            String phoneNumber = "0857311444"; // Default for testing
+            String phoneNumber = "+84384929107"; // Default for testing
             
             if (userInfo != null) {
                 userId = (String) userInfo.get("sub");

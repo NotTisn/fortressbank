@@ -312,6 +312,182 @@ public class AuthServiceImpl implements AuthService {
         keycloakClient.resetPassword(userId, request.newPassword());
     }
 
+    // ==================== FORGOT PASSWORD FLOW ====================
+
+    @Override
+    public com.uit.userservice.dto.response.ForgotPasswordOtpResponse forgotPasswordSendOtp(ForgotPasswordSendOtpRequest request) {
+        String phoneNumber = request.getPhoneNumber();
+
+        // 1. CHECK RATE LIMITING (prevent abuse)
+        String rateLimitKey = "forgot-password:rate-limit:" + phoneNumber;
+        String rateLimitValue = redisTemplate.opsForValue().get(rateLimitKey);
+
+        if (rateLimitValue != null) {
+            int attempts = Integer.parseInt(rateLimitValue);
+            if (attempts >= 3) { // Max 3 OTP requests per hour
+                log.warn("Rate limit exceeded for phone: {}", phoneNumber);
+                // Return success to prevent enumeration
+                return new com.uit.userservice.dto.response.ForgotPasswordOtpResponse(true, "OTP_SENT_SUCCESSFULLY", 300);
+            }
+            redisTemplate.opsForValue().increment(rateLimitKey);
+        } else {
+            redisTemplate.opsForValue().set(rateLimitKey, "1", 1, TimeUnit.HOURS);
+        }
+
+        // 2. CHECK IF USER EXISTS (internally, don't reveal to caller)
+        java.util.Optional<User> userOpt = userRepository.findByPhoneNumber(phoneNumber);
+        if (userOpt.isEmpty()) {
+            log.warn("Forgot password attempt for non-existent phone: {}", phoneNumber);
+            // CRITICAL: Return success to prevent enumeration attack
+            // Don't reveal that phone doesn't exist
+            return new com.uit.userservice.dto.response.ForgotPasswordOtpResponse(true, "OTP_SENT_SUCCESSFULLY", 300);
+        }
+
+        // 3. GENERATE 6-DIGIT OTP
+        String otp = String.format("%06d", (int)(Math.random() * 1000000));
+
+        // 4. STORE OTP IN REDIS (5 minutes TTL)
+        String otpKey = "forgot-password:otp:" + phoneNumber;
+        redisTemplate.opsForValue().set(otpKey, otp, 5, TimeUnit.MINUTES);
+
+        // 5. INITIALIZE ATTEMPT COUNTER (3 max attempts)
+        String attemptsKey = "forgot-password:attempts:" + phoneNumber;
+        redisTemplate.opsForValue().set(attemptsKey, "0", 5, TimeUnit.MINUTES);
+
+        // 6. SEND OTP VIA RABBITMQ (async to notification-service)
+        try {
+            java.util.Map<String, Object> otpMessage = java.util.Map.of(
+                "phoneNumber", phoneNumber,
+                "otpCode", otp
+            );
+
+            rabbitTemplate.convertAndSend(
+                RabbitMQConstants.TRANSACTION_EXCHANGE,
+                RabbitMQConstants.FORGOT_PASSWORD_OTP_ROUTING_KEY,
+                otpMessage
+            );
+
+            log.info("Forgot password OTP sent to RabbitMQ for phone: {}", phoneNumber);
+        } catch (Exception e) {
+            log.error("Failed to send OTP to RabbitMQ for phone {}: {}", phoneNumber, e.getMessage());
+            // Clean up Redis if RabbitMQ fails
+            redisTemplate.delete(otpKey);
+            redisTemplate.delete(attemptsKey);
+            throw new AppException(ErrorCode.NOTIFICATION_SERVICE_FAILED, "Failed to send OTP");
+        }
+
+        return new com.uit.userservice.dto.response.ForgotPasswordOtpResponse(true, "OTP_SENT_SUCCESSFULLY", 300);
+    }
+
+    @Override
+    public com.uit.userservice.dto.response.ForgotPasswordVerifyResponse forgotPasswordVerifyOtp(ForgotPasswordVerifyOtpRequest request) {
+        String phoneNumber = request.getPhoneNumber();
+        String providedOtp = request.getOtp();
+
+        // 1. GET STORED OTP FROM REDIS
+        String otpKey = "forgot-password:otp:" + phoneNumber;
+        String storedOtp = redisTemplate.opsForValue().get(otpKey);
+
+        if (storedOtp == null) {
+            throw new AppException(ErrorCode.OTP_EXPIRED_OR_NOT_FOUND);
+        }
+
+        // 2. CHECK ATTEMPT COUNTER
+        String attemptsKey = "forgot-password:attempts:" + phoneNumber;
+        String attemptsStr = redisTemplate.opsForValue().get(attemptsKey);
+        int attempts = attemptsStr != null ? Integer.parseInt(attemptsStr) : 0;
+
+        if (attempts >= 3) {
+            // Max attempts reached, delete OTP
+            redisTemplate.delete(otpKey);
+            redisTemplate.delete(attemptsKey);
+            throw new AppException(ErrorCode.MAX_OTP_ATTEMPTS_EXCEEDED);
+        }
+
+        // 3. VERIFY OTP
+        if (!storedOtp.equals(providedOtp)) {
+            // Increment attempt counter
+            redisTemplate.opsForValue().increment(attemptsKey);
+            throw new AppException(ErrorCode.INVALID_OTP);
+        }
+
+        // 4. OTP VERIFIED - GENERATE VERIFICATION TOKEN
+        // Use UUID for unpredictability
+        String verificationToken = java.util.UUID.randomUUID().toString();
+
+        // 5. STORE VERIFICATION TOKEN (10 minutes TTL for password reset)
+        String verifiedKey = "forgot-password:verified:" + phoneNumber;
+        redisTemplate.opsForValue().set(verifiedKey, verificationToken, 10, TimeUnit.MINUTES);
+
+        // 6. CLEANUP OTP AND ATTEMPTS
+        redisTemplate.delete(otpKey);
+        redisTemplate.delete(attemptsKey);
+
+        log.info("OTP verified successfully for phone: {}", phoneNumber);
+
+        return new com.uit.userservice.dto.response.ForgotPasswordVerifyResponse(
+            true,
+            "OTP_VERIFIED_SUCCESSFULLY",
+            verificationToken
+        );
+    }
+
+    @Override
+    public com.uit.userservice.dto.response.ForgotPasswordResetResponse forgotPasswordReset(ForgotPasswordResetRequest request) {
+        String phoneNumber = request.getPhoneNumber();
+        String providedToken = request.getVerificationToken();
+        String newPassword = request.getNewPassword();
+
+        // 1. VERIFY VERIFICATION TOKEN
+        String verifiedKey = "forgot-password:verified:" + phoneNumber;
+        String storedToken = redisTemplate.opsForValue().get(verifiedKey);
+
+        if (storedToken == null) {
+            throw new AppException(ErrorCode.VERIFICATION_TOKEN_EXPIRED);
+        }
+
+        if (!storedToken.equals(providedToken)) {
+            throw new AppException(ErrorCode.INVALID_VERIFICATION_TOKEN);
+        }
+
+        // 2. FIND USER BY PHONE NUMBER
+        User user = userRepository.findByPhoneNumber(phoneNumber)
+            .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // 3. RESET PASSWORD IN KEYCLOAK
+        try {
+            keycloakClient.resetPassword(user.getId(), newPassword);
+            log.info("Password reset successfully for user: {} (phone: {})", user.getId(), phoneNumber);
+        } catch (Exception e) {
+            log.error("Failed to reset password in Keycloak for user {}: {}", user.getId(), e.getMessage());
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION, "Failed to reset password");
+        }
+
+        // 4. CLEANUP VERIFICATION TOKEN
+        redisTemplate.delete(verifiedKey);
+
+        // 5. SEND CONFIRMATION SMS (best-effort, don't fail if notification fails)
+        try {
+            java.util.Map<String, Object> confirmationMessage = java.util.Map.of(
+                "phoneNumber", phoneNumber,
+                "otpCode", "Your FortressBank password has been reset successfully"  // Reuse OTP field for message
+            );
+
+            rabbitTemplate.convertAndSend(
+                RabbitMQConstants.TRANSACTION_EXCHANGE,
+                RabbitMQConstants.FORGOT_PASSWORD_OTP_ROUTING_KEY,
+                confirmationMessage
+            );
+
+            log.info("Password reset confirmation sent to RabbitMQ for phone: {}", phoneNumber);
+        } catch (Exception e) {
+            log.warn("Failed to send password reset confirmation SMS: {}", e.getMessage());
+            // Don't fail the reset if notification fails
+        }
+
+        return new com.uit.userservice.dto.response.ForgotPasswordResetResponse(true, "PASSWORD_RESET_SUCCESSFULLY");
+    }
+
     @Override
     public FaceRegistrationResult registerFacePublic(String userId, List<MultipartFile> files) {
         // Verify user exists

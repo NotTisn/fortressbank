@@ -51,6 +51,33 @@ public class NotificationListener {
     }
 
     /**
+     * Handles Forgot Password OTP events from user-service
+     * Queue: notification.forgot-password-otp.queue
+     * Routing Key: forgot-password.otp
+     * Purpose: Send OTP via SMS for password reset
+     */
+    @RabbitListener(queues = RabbitMQConstants.FORGOT_PASSWORD_OTP_QUEUE)
+    public void handleForgotPasswordOtpNotification(Map<String, Object> message) {
+        log.info("Received Forgot Password OTP notification event: {}", message);
+
+        try {
+            String phoneNumber = (String) message.get("phoneNumber");
+            String otpCode = (String) message.get("otpCode");
+
+            log.info("Processing Forgot Password OTP for phone: {}", phoneNumber);
+
+            // Send SMS OTP via TextBee API
+            notificationService.sendSmsOtp(phoneNumber, otpCode);
+
+            log.info("Forgot Password OTP SMS sent successfully to: {}", phoneNumber);
+
+        } catch (Exception e) {
+            log.error("Failed to send Forgot Password OTP notification: {}", e.getMessage(), e);
+            // OTP failures are critical - consider implementing retry logic or alerting
+        }
+    }
+
+    /**
      * Handles transaction completion/failure events from transaction-service
      * Queue: notification-queue
      * Routing Keys: notification.TransactionCompleted, notification.TransactionFailed, notification.ExternalTransferInitiated
