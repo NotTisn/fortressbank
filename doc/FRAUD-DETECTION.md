@@ -148,8 +148,71 @@ fetch('/accounts/transfers', {
 - Multiple factors ❌ (+10)
 - **Score**: 100 → HIGH risk → Transfer blocked/SMART_OTP
 
+### Scenario 4: Salami Slicing Attack
+- Attacker makes 6 small transfers of 10,000₫ each
+- Transfers 1-5: Cumulative total = 50,000₫ (under limit)
+  - **Result**: LOW risk, approved
+- Transfer 6: Cumulative total = 60,000₫ (exceeds 50,000₫ limit)
+  - Daily velocity exceeded ❌ (+35)
+  - **Result**: MEDIUM risk → SMS_OTP required
+
+## Integration Architecture
+
+### Transfer Flow with Velocity Tracking
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                      TRANSFER REQUEST FLOW                          │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ 1. Transaction Service: Initiates transfer saga                     │
+│    → Calls Risk Engine for PRE-TRANSFER assessment                  │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ 2. Risk Engine: Assesses 7 rules including Rule 7 (Velocity)       │
+│    → Returns: riskScore, riskLevel, challengeType, reasons[]        │
+│    → If HIGH: Requires SMART_OTP or blocks transfer                 │
+│    → If MEDIUM: Requires SMS_OTP                                    │
+│    → If LOW: Allows transfer to proceed                             │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ 3. Account Service: Executes atomic transfer (if approved)          │
+│    → Pessimistic locks both accounts                                │
+│    → Debits sender, credits receiver                                │
+│    → Publishes audit events                                         │
+└─────────────────────────────────────┬────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ 4. Account Service: POST-TRANSFER velocity recording (async)        │
+│    → Calls: POST /assess/internal/velocity/record                   │
+│    → Fire-and-forget: doesn't slow down response                    │
+│    → Risk Engine updates Redis: velocity:daily:{userId}             │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### Velocity API Endpoints (Internal)
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/assess/internal/velocity/record` | POST | Record completed transfer (account-service → risk-engine) |
+| `/assess/internal/velocity/{userId}` | GET | Get current daily total (for debugging/monitoring) |
+
+### Redis Data Structure
+
+- **Key**: `velocity:daily:{userId}`
+- **Value**: Cumulative transfer amount (BigDecimal as string)
+- **TTL**: 86400 seconds (24 hours from first transfer)
+
 ## Future Enhancements
 
+- [x] Transaction velocity (daily cumulative limit)
 - [ ] Machine learning model for behavior analysis
 - [ ] IP reputation scoring (proxy/VPN detection)
 - [ ] Transaction velocity (n transfers in m minutes)
