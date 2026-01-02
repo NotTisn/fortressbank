@@ -1,7 +1,7 @@
 -- V5: Add TOTP (Smart OTP) secrets table
 -- Stores encrypted TOTP secrets for Google Authenticator compatible Smart OTP
 
-CREATE TABLE otp_secrets (
+CREATE TABLE IF NOT EXISTS otp_secrets (
     user_id VARCHAR(255) PRIMARY KEY,
     otp_secret_key_encrypt VARCHAR(255) NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
@@ -15,7 +15,7 @@ CREATE TABLE otp_secrets (
 );
 
 -- Index for quick status lookups
-CREATE INDEX idx_otp_secrets_status ON otp_secrets(status);
+CREATE INDEX IF NOT EXISTS idx_otp_secrets_status ON otp_secrets(status);
 
 -- Add comment for documentation
 COMMENT ON TABLE otp_secrets IS 'TOTP secrets for Smart OTP (Google Authenticator compatible)';

@@ -1,4 +1,4 @@
-_format_version: "3.0"
+﻿_format_version: "3.0"
 
 services:
   # public auth endpoints
@@ -116,7 +116,7 @@ plugins:
   # Single-device enforcement plugin (validates deviceId against Keycloak)
   # - name: single-device
   #   config:
-  #     keycloak_url: "http://keycloak:8080"
+  #     keycloak_url: "http://fortressbank-keycloak:8080"
   #     realm: "fortressbank-realm"
   #     # TODO: replace with a secure service account token or implement OAuth client credentials flow
   #     admin_token: "CHANGE_ME_SINGLE_DEVICE_ADMIN_TOKEN"
@@ -126,13 +126,13 @@ plugins:
     config:
       client_id: "kong"
       client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
-      discovery: "http://keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
       session_secret: "random-secret-here"
       scope: "openid profile email"
       ssl_verify: false
       bearer_only: true
       token_endpoint_auth_method: "client_secret_post"
-      introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
 
   # PROTECT TOTP endpoints
   - name: openid-connect
@@ -140,13 +140,13 @@ plugins:
     config:
       client_id: "kong"
       client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
-      discovery: "http://keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
       session_secret: "random-secret-here"
       scope: "openid profile email"
       ssl_verify: false
       bearer_only: true
       token_endpoint_auth_method: "client_secret_post"
-      introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
 
   # PROTECT Device management endpoints
   - name: openid-connect
@@ -154,13 +154,13 @@ plugins:
     config:
       client_id: "kong"
       client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
-      discovery: "http://keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
       session_secret: "random-secret-here"
       scope: "openid profile email"
       ssl_verify: false
       bearer_only: true
       token_endpoint_auth_method: "client_secret_post"
-      introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
 
   # PROTECT Smart OTP endpoints
   - name: openid-connect
@@ -168,25 +168,25 @@ plugins:
     config:
       client_id: "kong"
       client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
-      discovery: "http://keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
       session_secret: "random-secret-here"
       scope: "openid profile email"
       ssl_verify: false
       bearer_only: true
       token_endpoint_auth_method: "client_secret_post"
-      introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
 
   - name: openid-connect
     route: admin-user-route
     config:
       client_id: "kong"
-      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe" # Dùng đúng secret của bạn
-      discovery: "http://keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe" # DÃ¹ng Ä‘Ãºng secret cá»§a báº¡n
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
       scope: "openid profile email"
       ssl_verify: false
       bearer_only: true
       token_endpoint_auth_method: "client_secret_post"
-      introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
 
   # PROTECT account service
   - name: openid-connect
@@ -194,26 +194,26 @@ plugins:
     config:
       client_id: "kong"
       client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
-      discovery: "http://keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
       session_secret: "random-secret-here"
       scope: "openid profile email"
       ssl_verify: false
       bearer_only: true
       token_endpoint_auth_method: "client_secret_post"
-      introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
 
   - name: openid-connect
     route: transaction-service-route
     config:
       client_id: "kong"
       client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
-      discovery: "http://keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
       session_secret: "random-secret-here"
       scope: "openid profile email"
       ssl_verify: false
       bearer_only: true
       token_endpoint_auth_method: "client_secret_post"
-      introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
 
   # Notification service authentication
   - name: openid-connect
@@ -221,13 +221,13 @@ plugins:
     config:
       client_id: "kong"
       client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
-      discovery: "http://keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
       session_secret: "random-secret-here"
       scope: "openid profile email"
       ssl_verify: false
       bearer_only: true
       token_endpoint_auth_method: "client_secret_post"
-      introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
 
   # GLOBAL rate limit
   # SECURITY NOTE: In production with multiple Kong instances, use policy: redis
@@ -264,3 +264,4 @@ plugins:
       limit_by: consumer
       policy: local
       fault_tolerant: true
+
