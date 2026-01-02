@@ -54,7 +54,21 @@ This security testing suite covers both **offensive** (penetration testing) and 
 
 **Coverage:** 3 attack vectors covering OWASP A05:2021 (Security Misconfiguration)
 
-### 7. Master Test Runner (✅ Complete)
+### 7. Smart OTP Security Tests (✅ Complete - January 2026)
+- `6-smart-otp/run-smart-otp-tests.ps1` - Test runner for all Smart OTP tests
+- `6-smart-otp/test-01-challenge-replay.ps1` - Test challenge replay attack prevention
+- `6-smart-otp/test-02-device-ownership.ps1` - Test IDOR on device registration
+- `6-smart-otp/test-03-signature-forgery.ps1` - Test cryptographic signature validation
+- `6-smart-otp/test-04-challenge-expiry.ps1` - Test rate limiting and expiry
+- `6-smart-otp/test-05-face-bypass.ps1` - Test face verification bypass attempts
+
+**Coverage:** 5 attack vectors covering:
+- OWASP A01:2021 (Broken Access Control) - Device ownership
+- OWASP A02:2021 (Cryptographic Failures) - Signature forgery
+- OWASP A04:2021 (Insecure Design) - Challenge replay, expiry
+- OWASP A07:2021 (Authentication Failures) - Biometric bypass
+
+### 8. Master Test Runner (✅ Complete)
 - `run-all-tests.sh` - Automated execution of entire test suite
   - Color-coded output (pass/fail/skip)
   - Prerequisite validation
