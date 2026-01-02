@@ -39,8 +39,11 @@ public class SecurityConfig {
                     .requestMatchers("/actuator/**").permitAll()
                     // Allow ALL /auth endpoints (register, login, logout, refresh, validate-and-send-otp, verify-otp)
                     .requestMatchers("/auth/**").permitAll()
-                    // Allow internal service-to-service endpoints (no JWT required)
+                    // Allow internal service-to-service endpoints (no JWT required, network protected)
                     .requestMatchers("/users/internal/**").permitAll()
+                    .requestMatchers("/totp/internal/**").permitAll()
+                    .requestMatchers("/devices/internal/**").permitAll()
+                    .requestMatchers("/smart-otp/internal/**").permitAll()
                     // All other requests require authentication
                         .anyRequest().authenticated()
                 )

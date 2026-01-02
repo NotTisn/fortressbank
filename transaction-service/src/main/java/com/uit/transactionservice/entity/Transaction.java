@@ -122,6 +122,34 @@ public class Transaction {
     @Column(name = "idempotency_key", unique = true, length = 100)
     private String idempotencyKey;
 
+    // ========== Risk Assessment Fields ==========
+    
+    /**
+     * Risk level from risk-engine assessment: LOW, MEDIUM, HIGH
+     */
+    @Column(name = "risk_level", length = 20)
+    private String riskLevel;
+
+    /**
+     * Risk score (0-100) from risk-engine
+     */
+    @Column(name = "risk_score")
+    private Integer riskScore;
+
+    /**
+     * Type of challenge required: NONE, DEVICE_BIO, FACE_VERIFY
+     * (Mapped from risk-engine: SMS_OTP → DEVICE_BIO, SMART_OTP → FACE_VERIFY)
+     */
+    @Column(name = "challenge_type", length = 20)
+    private String challengeType;
+
+    /**
+     * Challenge ID from user-service Smart OTP.
+     * Used to correlate challenge-response verification.
+     */
+    @Column(name = "challenge_id", length = 100)
+    private String challengeId;
+
     // ========== Saga Orchestration Fields ==========
     
     /**

@@ -53,8 +53,120 @@ FortressBank now implements a comprehensive 6-rule fraud detection system, match
 | Score | Risk Level | Challenge Type | Action |
 |-------|------------|----------------|--------|
 | 0-39  | LOW        | NONE           | Instant approval |
-| 40-69 | MEDIUM     | SMS_OTP        | SMS verification required |
-| 70+   | HIGH       | SMART_OTP      | Enhanced verification |
+| 40-69 | MEDIUM     | DEVICE_BIO     | Device biometric signature required |
+| 70+   | HIGH       | FACE_VERIFY    | Face re-verification required |
+
+> **Note**: If user has no registered device, falls back to SMS_OTP.  
+> If user has no registered face, FACE_VERIFY falls back to DEVICE_BIO.
+
+## Challenge Types
+
+### NONE (Low Risk)
+- **Trigger**: Risk score 0-39
+- **User Experience**: Transfer completes immediately
+- **Implementation**: No verification step
+
+### SMS_OTP (Medium Risk - Fallback)
+- **Trigger**: Risk score 40-69 when user has no registered device
+- **User Experience**: 6-digit code sent via SMS
+- **Implementation**: 
+  - transaction-service generates OTP, stores in Redis (90s TTL)
+  - notification-service sends SMS via TextBee
+  - User enters code to confirm transfer
+
+### DEVICE_BIO (Medium Risk) 🇻🇳 Vietnamese E-Banking Style
+- **Trigger**: Risk score 40-69 when user has registered device
+- **User Experience**: Fingerprint/PIN prompts on mobile app (like Momo/VCB)
+- **Implementation**: 
+  - Challenge-response pattern with cryptographic signature
+  - Device's secure key (stored in TEE/Secure Enclave) signs challenge data
+  - Biometric unlock (fingerprint/face/PIN) required to access key
+  - 120-second challenge TTL in Redis
+  - Signature verified by user-service using stored public key
+
+#### Device Registration Flow
+```
+1. User calls POST /devices/register with device info + public key
+   
+2. user-service stores device (id, name, publicKeyPem)
+   
+3. Device is now registered for DEVICE_BIO challenges
+```
+
+#### DEVICE_BIO Verification Flow
+```
+1. User initiates transfer → Risk score 40-69
+   
+2. Transaction created with status PENDING_SMART_OTP
+   - challengeId and challengeData returned
+   
+3. Mobile app prompts for fingerprint/PIN
+   
+4. On biometric success, app signs challengeData with device key
+   
+5. POST /transactions/verify-device with deviceId + signatureBase64
+   
+6. transaction-service → user-service verifies signature
+   
+7. If valid → Transfer executes
+```
+
+### FACE_VERIFY (High Risk) 🇻🇳 Vietnamese E-Banking Style
+- **Trigger**: Risk score 70+ when user has registered face
+- **User Experience**: Face scan prompt (like VCB high-value transfers)
+- **Implementation**: 
+  - Leverages existing FaceID infrastructure (fbank-ai service)
+  - Liveness detection to prevent spoofing
+  - Face must match registered biometric template
+  - 120-second challenge TTL in Redis
+
+#### FACE_VERIFY Verification Flow
+```
+1. User initiates transfer → Risk score 70+
+   
+2. Transaction created with status PENDING_SMART_OTP
+   - challengeId returned
+   
+3. Mobile app prompts for face scan
+   
+4. App sends face image to user-service /smart-otp/verify-face
+   
+5. user-service → fbank-ai verifies face match + liveness
+   
+6. If valid → POST /transactions/verify-face to complete
+   
+7. Transfer executes
+```
+
+## Smart OTP API Endpoints
+
+### Device Management
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/devices/register` | POST | JWT | Register new device with public key |
+| `/devices` | GET | JWT | List user's registered devices |
+| `/devices/{deviceId}` | DELETE | JWT | Revoke a device |
+| `/devices/internal/verify-signature` | POST | Internal | Verify device signature |
+
+### Smart OTP Verification
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/smart-otp/status` | GET | JWT | Check user's verification capabilities |
+| `/smart-otp/verify-device` | POST | JWT | Submit device signature |
+| `/smart-otp/verify-face` | POST | JWT | Submit face image for verification |
+| `/smart-otp/internal/challenge` | POST | Internal | Generate challenge for transaction |
+| `/smart-otp/internal/verify-device` | POST | Internal | Verify device signature (S2S) |
+| `/smart-otp/internal/status/{userId}` | GET | Internal | Check user's capabilities (S2S) |
+
+### Transaction Verification
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/transactions/verify-otp` | POST | JWT | Verify SMS OTP |
+| `/transactions/verify-device` | POST | JWT | Verify device signature |
+| `/transactions/verify-face` | POST | JWT | Complete face verification |
 
 ## Client Integration
 
@@ -87,10 +199,10 @@ fetch('/accounts/transfers', {
 
 ```
 ┌──────────────────┐
-│  Client          │
-│  (Browser/App)   │
+│  Mobile App      │
+│  - Device Key    │ (TEE/Secure Enclave)
+│  - Face Capture  │
 │  - Fingerprint   │
-│  - Geolocation   │
 └────────┬─────────┘
          │ Headers: X-Device-Fingerprint, X-Location
          ▼
@@ -101,19 +213,60 @@ fetch('/accounts/transfers', {
          │
          ▼
 ┌──────────────────┐
-│ Account Service  │
-│ - Extract headers│
-│ - Call RiskEngine│
-└────────┬─────────┘
-         │
-         ▼
+│Transaction Svc   │────────────────────────────────┐
+│ - Create transfer│                                │
+│ - Map challenge  │                                │
+│ - Verify & exec  │                                │
+└────────┬─────────┘                                │
+         │                                          │
+         ▼                                          ▼
 ┌──────────────────┐      ┌───────────────┐      ┌───────────────┐
 │  Risk Engine     │─────▶│ User Service  │      │    Redis      │
-│  - 7 Rule Engine │      │ (RiskProfile) │      │ (Velocity)    │
-│  - Score calc    │◀─────│ - Known devs  │      │ - Daily totals│
-│  - Redis velocity│──────│ - Known locs  │      │ - 24h TTL     │
-└──────────────────┘      │ - Known payees│      └───────────────┘
+│  - 7 Rule Engine │      │ - RiskProfile │      │ - Velocity    │
+│  - Score calc    │◀─────│ - Devices     │      │ - Challenges  │
+│                  │      │ - SmartOTP    │      │ - 24h TTL     │
+└──────────────────┘      │ - FaceID      │      └───────────────┘
+                          └───────┬───────┘
+                                  │
+                                  ▼
+                          ┌───────────────┐
+                          │   fbank-ai    │
+                          │ Face Verify   │
+                          │ Liveness Det  │
                           └───────────────┘
+```
+
+### Challenge Flow (DEVICE_BIO)
+```
+Mobile App                     Transaction Svc              User Svc             Redis
+    │                               │                          │                   │
+    │ POST /transfers              │                          │                   │
+    │──────────────────────────────>│                          │                   │
+    │                               │ getSmartOtpStatus()     │                   │
+    │                               │──────────────────────────>│                   │
+    │                               │<──────────────────────────│ hasDevice=true   │
+    │                               │ generateChallenge()      │                   │
+    │                               │──────────────────────────>│                   │
+    │                               │                          │ store in Redis   │
+    │                               │                          │──────────────────>│
+    │                               │<──────────────────────────│ challengeId+data │
+    │<──────────────────────────────│ PENDING_SMART_OTP        │                   │
+    │                               │ challengeId, challengeData│                   │
+    │                               │                          │                   │
+    │ [User taps fingerprint]      │                          │                   │
+    │ [Device signs challenge]     │                          │                   │
+    │                               │                          │                   │
+    │ POST /verify-device          │                          │                   │
+    │ deviceId, signature          │                          │                   │
+    │──────────────────────────────>│                          │                   │
+    │                               │ verifyDeviceSignature() │                   │
+    │                               │──────────────────────────>│                   │
+    │                               │                          │ get from Redis   │
+    │                               │                          │──────────────────>│
+    │                               │                          │ verify signature │
+    │                               │<──────────────────────────│ valid=true       │
+    │                               │ [Execute Transfer]       │                   │
+    │<──────────────────────────────│ COMPLETED                │                   │
 ```
 
 ## Benefits
@@ -213,8 +366,9 @@ fetch('/accounts/transfers', {
 ## Future Enhancements
 
 - [x] Transaction velocity (daily cumulative limit)
+- [x] Smart OTP / TOTP (Authenticator app integration)
 - [ ] Machine learning model for behavior analysis
 - [ ] IP reputation scoring (proxy/VPN detection)
 - [ ] Transaction velocity (n transfers in m minutes)
 - [ ] Known fraud patterns database
-- [ ] Biometric verification integration
+- [ ] FaceID verification for ultra-high-risk transfers

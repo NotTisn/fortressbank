@@ -4,6 +4,8 @@ import com.uit.sharedkernel.api.ApiResponse;
 import com.uit.transactionservice.dto.VerifyOTPRequest;
 import com.uit.transactionservice.dto.request.CreateTransferRequest;
 import com.uit.transactionservice.dto.request.ResendOtpRequest;
+import com.uit.transactionservice.dto.request.VerifyDeviceSignatureRequest;
+import com.uit.transactionservice.dto.request.VerifyFaceRequest;
 import com.uit.transactionservice.dto.response.TransactionLimitResponse;
 import com.uit.transactionservice.dto.response.TransactionResponse;
 import com.uit.transactionservice.entity.TransactionStatus;
@@ -181,6 +183,78 @@ public class TransactionController {
             @RequestParam String accountId) {
 
         TransactionLimitResponse response = transactionLimitService.getTransactionLimits(accountId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    // ========================================================================
+    // BIOMETRIC VERIFICATION ENDPOINTS (Vietnamese e-banking style)
+    // ========================================================================
+
+    /**
+     * Verify device biometric signature for a transaction.
+     * Used for DEVICE_BIO challenge type (MEDIUM risk transactions).
+     * 
+     * Flow:
+     * 1. Client receives transaction with challengeType=DEVICE_BIO and challengeData
+     * 2. Client prompts user for fingerprint/PIN to unlock device's secure key
+     * 3. Client signs challengeData with the device key
+     * 4. Client calls this endpoint with deviceId and signatureBase64
+     * 
+     * POST /transactions/verify-device
+     */
+    @PostMapping("/verify-device")
+    // @RequireRole("user")
+    public ResponseEntity<ApiResponse<TransactionResponse>> verifyDeviceSignature(
+            @Valid @RequestBody VerifyDeviceSignatureRequest request) {
+        
+        log.info("Verifying device signature for transaction: {} device: {}", 
+                request.getTransactionId(), request.getDeviceId());
+
+        TransactionResponse response = transactionService.verifyDeviceSignature(
+                request.getTransactionId(),
+                request.getDeviceId(),
+                request.getSignatureBase64()
+        );
+        
+        if (response.getStatus() == TransactionStatus.FAILED) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, response.getFailureReason(), response));
+        }
+        
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * Verify face for a high-risk transaction.
+     * Used for FACE_VERIFY challenge type (HIGH risk transactions).
+     * 
+     * Note: For simplicity, this endpoint receives a pre-verified result.
+     * In production, the mobile app would:
+     * 1. Capture face image
+     * 2. Call user-service /smart-otp/verify-face with the image
+     * 3. If verified, call this endpoint to complete the transaction
+     * 
+     * POST /transactions/verify-face
+     */
+    @PostMapping("/verify-face")
+    // @RequireRole("user")
+    public ResponseEntity<ApiResponse<TransactionResponse>> verifyFace(
+            @Valid @RequestBody VerifyFaceRequest request,
+            @RequestParam(defaultValue = "true") boolean faceVerified) {
+        
+        log.info("Completing face verification for transaction: {} verified: {}", 
+                request.getTransactionId(), faceVerified);
+
+        TransactionResponse response = transactionService.completeFaceVerification(
+                request.getTransactionId(),
+                faceVerified
+        );
+        
+        if (response.getStatus() == TransactionStatus.FAILED) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(400, response.getFailureReason(), response));
+        }
+        
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

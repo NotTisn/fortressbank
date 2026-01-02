@@ -31,4 +31,29 @@ public class TransactionResponse {
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
     private String failureReason;
+
+    // Risk assessment info
+    private String riskLevel;
+    private Integer riskScore;
+    
+    /**
+     * Challenge type required for this transaction:
+     * - NONE: No verification needed (low risk)
+     * - SMS_OTP: SMS code verification (medium risk, no device registered)
+     * - DEVICE_BIO: Device biometric signature (medium risk, device registered)
+     * - FACE_VERIFY: Face re-verification (high risk)
+     */
+    private String challengeType;
+    
+    /**
+     * Challenge ID for biometric verification (DEVICE_BIO or FACE_VERIFY).
+     * Client uses this to submit verification response.
+     */
+    private String challengeId;
+    
+    /**
+     * Challenge data to be signed by device (for DEVICE_BIO).
+     * Base64-encoded random bytes.
+     */
+    private String challengeData;
 }
