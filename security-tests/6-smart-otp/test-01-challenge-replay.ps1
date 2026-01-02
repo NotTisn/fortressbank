@@ -48,9 +48,15 @@ try {
     $Response = Invoke-RestMethod -Uri "$BaseUrl/smart-otp/verify-device" `
         -Method POST -Headers $Headers -Body $ReplayBody
     
-    Write-Host "[!] VULNERABILITY: Server accepted fabricated challenge!" -ForegroundColor Red
-    Write-Host "    Response: $($Response | ConvertTo-Json -Depth 5)" -ForegroundColor Red
-    exit 1
+    # Check if server rejected the challenge (valid=false means attack blocked)
+    if ($Response.data -and $Response.data.valid -eq $false) {
+        Write-Host "[+] PASS: Server rejected fabricated challenge" -ForegroundColor Green
+        Write-Host "    Message: $($Response.data.message)" -ForegroundColor Gray
+    } else {
+        Write-Host "[!] VULNERABILITY: Server accepted fabricated challenge!" -ForegroundColor Red
+        Write-Host "    Response: $($Response | ConvertTo-Json -Depth 5)" -ForegroundColor Red
+        exit 1
+    }
 } catch {
     $StatusCode = $_.Exception.Response.StatusCode.value__
     
@@ -87,8 +93,13 @@ foreach ($BadId in $MalformedIds) {
         $Response = Invoke-RestMethod -Uri "$BaseUrl/smart-otp/verify-device" `
             -Method POST -Headers $Headers -Body $Body
         
-        Write-Host "[!] VULNERABILITY: Accepted malformed ID: $BadId" -ForegroundColor Red
-        $AllPassed = $false
+        # Check if server rejected (valid=false means attack blocked)
+        if ($Response.data -and $Response.data.valid -eq $false) {
+            Write-Host "[+] Rejected: $BadId (valid=false)" -ForegroundColor Green
+        } else {
+            Write-Host "[!] VULNERABILITY: Accepted malformed ID: $BadId" -ForegroundColor Red
+            $AllPassed = $false
+        }
     } catch {
         $StatusCode = $_.Exception.Response.StatusCode.value__
         if ($StatusCode -ge 400 -and $StatusCode -lt 500) {

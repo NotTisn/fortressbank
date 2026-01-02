@@ -46,9 +46,15 @@ try {
     $Response = Invoke-RestMethod -Uri "$BaseUrl/smart-otp/verify-device" `
         -Method POST -Headers $Headers -Body $Body
     
-    Write-Host "[!] VULNERABILITY: Server accepted non-owned device!" -ForegroundColor Red
-    Write-Host "    This is a critical IDOR vulnerability!" -ForegroundColor Red
-    exit 1
+    # Check if server rejected (valid=false means attack blocked)
+    if ($Response.data -and $Response.data.valid -eq $false) {
+        Write-Host "[+] PASS: Server rejected non-owned device" -ForegroundColor Green
+        Write-Host "    Message: $($Response.data.message)" -ForegroundColor Gray
+    } else {
+        Write-Host "[!] VULNERABILITY: Server accepted non-owned device!" -ForegroundColor Red
+        Write-Host "    This is a critical IDOR vulnerability!" -ForegroundColor Red
+        exit 1
+    }
 } catch {
     $StatusCode = $_.Exception.Response.StatusCode.value__
     $ErrorBody = $_.ErrorDetails.Message

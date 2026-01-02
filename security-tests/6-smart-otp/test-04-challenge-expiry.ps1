@@ -90,7 +90,12 @@ try {
     $Response = Invoke-RestMethod -Uri "$BaseUrl/smart-otp/verify-device" `
         -Method POST -Headers $Headers -Body $Body
     
-    Write-Host "[?] Server processed expired challenge (may be okay if challenge doesn't exist)" -ForegroundColor Yellow
+    # Check if server rejected (valid=false means expired challenge was blocked)
+    if ($Response.data -and $Response.data.valid -eq $false) {
+        Write-Host "[+] PASS: Expired challenge rejected (valid=false)" -ForegroundColor Green
+    } else {
+        Write-Host "[?] Server processed expired challenge (may be okay if challenge doesn't exist)" -ForegroundColor Yellow
+    }
 } catch {
     $StatusCode = $_.Exception.Response.StatusCode.value__
     
@@ -136,8 +141,13 @@ foreach ($Id in $SequentialIds) {
         $Response = Invoke-RestMethod -Uri "$BaseUrl/smart-otp/verify-device" `
             -Method POST -Headers $Headers -Body $Body
         
-        Write-Host "[!] VULNERABILITY: Sequential ID $Id accepted!" -ForegroundColor Red
-        $PredictableFound = $true
+        # Check if server rejected (valid=false means attack blocked)
+        if ($Response.data -and $Response.data.valid -eq $false) {
+            # Not a vulnerability - server correctly rejected
+        } else {
+            Write-Host "[!] VULNERABILITY: Sequential ID $Id accepted!" -ForegroundColor Red
+            $PredictableFound = $true
+        }
     } catch {
         # Expected - these should all fail
     }

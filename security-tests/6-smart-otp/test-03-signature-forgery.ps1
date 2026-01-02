@@ -62,9 +62,14 @@ foreach ($Sig in $ForgedSignatures) {
         $Response = Invoke-RestMethod -Uri "$BaseUrl/smart-otp/verify-device" `
             -Method POST -Headers $Headers -Body $Body
         
-        Write-Host "[!] VULNERABILITY: Server accepted forged signature!" -ForegroundColor Red
-        Write-Host "    Signature: $DisplaySig" -ForegroundColor Red
-        $AllRejected = $false
+        # Check if server rejected (valid=false means attack blocked)
+        if ($Response.data -and $Response.data.valid -eq $false) {
+            Write-Host "[+] Rejected: Signature verification failed (valid=false)" -ForegroundColor Green
+        } else {
+            Write-Host "[!] VULNERABILITY: Server accepted forged signature!" -ForegroundColor Red
+            Write-Host "    Signature: $DisplaySig" -ForegroundColor Red
+            $AllRejected = $false
+        }
     } catch {
         $StatusCode = $_.Exception.Response.StatusCode.value__
         
