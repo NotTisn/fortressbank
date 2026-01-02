@@ -70,3 +70,5 @@ bootstrap.yml
 notification-service/src/main/resources/application.yml
 
 target/
+# Security test tokens
+access_token.txt
