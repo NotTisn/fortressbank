@@ -3,6 +3,7 @@ package com.uit.userservice.controller;
 import com.uit.sharedkernel.api.ApiResponse;
 import com.uit.userservice.dto.smartotp.*;
 import com.uit.userservice.service.SmartOtpService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -59,7 +60,7 @@ public class SmartOtpController {
     @PreAuthorize("hasRole('user')")
     public ResponseEntity<ApiResponse<SmartOtpVerifyResponse>> verifyDevice(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody DeviceVerifyRequest request) {
+            @Valid @RequestBody DeviceVerifyRequest request) {
         
         String userId = jwt.getSubject();
         log.info("User {} submitting device verification for challenge {}", userId, request.getChallengeId());
@@ -116,7 +117,7 @@ public class SmartOtpController {
      */
     @PostMapping("/internal/challenge")
     public ResponseEntity<ApiResponse<SmartOtpChallengeResponse>> generateChallenge(
-            @RequestBody InternalChallengeRequest request) {
+            @Valid @RequestBody InternalChallengeRequest request) {
         
         log.info("Internal challenge request: user={} txn={} type={}", 
                 request.getUserId(), request.getTransactionId(), request.getChallengeType());
@@ -135,7 +136,7 @@ public class SmartOtpController {
      */
     @PostMapping("/internal/verify-device")
     public ResponseEntity<ApiResponse<SmartOtpVerifyResponse>> internalVerifyDevice(
-            @RequestBody InternalDeviceVerifyRequest request) {
+            @Valid @RequestBody InternalDeviceVerifyRequest request) {
         
         log.info("Internal device verify: challenge={} device={}", 
                 request.getChallengeId(), request.getDeviceId());
@@ -164,22 +165,30 @@ public class SmartOtpController {
 
     @lombok.Data
     public static class DeviceVerifyRequest {
+        @jakarta.validation.constraints.NotBlank(message = "Challenge ID is required")
         private String challengeId;
+        @jakarta.validation.constraints.NotBlank(message = "Device ID is required")
         private String deviceId;
+        @jakarta.validation.constraints.NotBlank(message = "Signature is required")
         private String signatureBase64;
     }
 
     @lombok.Data
     public static class InternalChallengeRequest {
+        @jakarta.validation.constraints.NotBlank(message = "User ID is required")
         private String userId;
         private String transactionId;
+        @jakarta.validation.constraints.NotBlank(message = "Challenge type is required")
         private String challengeType; // DEVICE_BIO or FACE_VERIFY
     }
 
     @lombok.Data
     public static class InternalDeviceVerifyRequest {
+        @jakarta.validation.constraints.NotBlank(message = "Challenge ID is required")
         private String challengeId;
+        @jakarta.validation.constraints.NotBlank(message = "Device ID is required")
         private String deviceId;
+        @jakarta.validation.constraints.NotBlank(message = "Signature is required")
         private String signatureBase64;
     }
 }

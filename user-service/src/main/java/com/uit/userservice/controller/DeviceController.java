@@ -88,7 +88,7 @@ public class DeviceController {
      */
     @PostMapping("/internal/verify-signature")
     public ResponseEntity<ApiResponse<DeviceVerifySignatureResponse>> internalVerifySignature(
-            @RequestBody DeviceVerifySignatureRequest request) {
+            @Valid @RequestBody DeviceVerifySignatureRequest request) {
 
         log.info("Internal verify signature for user={}, device={}", request.getUserId(), request.getDeviceId());
 

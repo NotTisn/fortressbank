@@ -139,7 +139,7 @@ public class TotpController {
     @PreAuthorize("hasRole('user')")
     public ResponseEntity<ApiResponse<String>> useRecoveryCode(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody RecoveryCodeRequest request) {
+            @Valid @RequestBody RecoveryCodeRequest request) {
         
         String userId = jwt.getSubject();
         
@@ -166,7 +166,7 @@ public class TotpController {
      */
     @PostMapping("/internal/verify")
     public ResponseEntity<ApiResponse<TotpVerifyResponse>> internalVerifyCode(
-            @RequestBody InternalTotpVerifyRequest request) {
+            @Valid @RequestBody InternalTotpVerifyRequest request) {
         
         log.info("Internal TOTP verification for user: {} transaction: {}", 
                 request.getUserId(), request.getTransactionId());
@@ -195,12 +195,15 @@ public class TotpController {
 
     @lombok.Data
     public static class RecoveryCodeRequest {
+        @jakarta.validation.constraints.NotBlank(message = "Recovery code is required")
         private String recoveryCode;
     }
 
     @lombok.Data
     public static class InternalTotpVerifyRequest {
+        @jakarta.validation.constraints.NotBlank(message = "User ID is required")
         private String userId;
+        @jakarta.validation.constraints.NotBlank(message = "TOTP code is required")
         private String code;
         private String transactionId;
     }
