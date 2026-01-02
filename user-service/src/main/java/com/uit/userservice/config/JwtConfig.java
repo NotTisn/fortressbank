@@ -1,31 +1,33 @@
-package com.uit.accountservice.config;
+package com.uit.userservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 
 /**
- * JWT Configuration for Account Service.
+ * JWT Configuration for User Service.
  * 
- * Provides JwtDecoder bean for validating JWT tokens in both REST and SOAP requests.
+ * Provides JwtDecoder bean for validating JWT tokens.
  * 
  * Configuration options (in order of precedence):
  * 1. jwt.jwk-set-uri + jwt.expected-issuer: Explicit key location and expected issuer
  *    - Use when JWKS is fetched from different URL than issuer (e.g., Docker internal)
- * 2. jwt.issuer-uri / spring.security.oauth2.resourceserver.jwt.issuer-uri:
+ * 2. spring.security.oauth2.resourceserver.jwt.jwk-set-uri:
+ *    - Uses explicit JWKS URI without issuer validation
+ * 3. jwt.issuer-uri / spring.security.oauth2.resourceserver.jwt.issuer-uri:
  *    - Uses issuer URI for both JWKS discovery and issuer validation
  * 
- * SECURITY FIX (2024-12/2026-01):
+ * SECURITY FIX (2026-01):
  * - Added support for split jwk-set-uri and expected-issuer configuration
  * - This allows fetching keys from Docker-internal URL while validating tokens 
  *   with external issuer (e.g., localhost:8888)
+ * - Works with KC_HOSTNAME=localhost Keycloak configuration
  */
 @Configuration
 public class JwtConfig {

@@ -3,24 +3,28 @@ package com.uit.transactionservice.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
 /**
  * JWT Configuration for Transaction Service.
  * 
  * Provides JwtDecoder bean for validating JWT tokens.
- * Uses Keycloak's JWK Set URI for public key retrieval.
  * 
- * Configuration:
- * - jwt.issuer-uri: Keycloak realm URL (e.g., http://keycloak:8080/realms/fortressbank-realm)
- * - spring.security.oauth2.resourceserver.jwt.issuer-uri: Alternative config path
+ * Configuration options (in order of precedence):
+ * 1. jwt.jwk-set-uri + jwt.expected-issuer: Explicit key location and expected issuer
+ *    - Use when JWKS is fetched from different URL than issuer (e.g., Docker internal)
+ * 2. jwt.issuer-uri / spring.security.oauth2.resourceserver.jwt.issuer-uri:
+ *    - Uses issuer URI for both JWKS discovery and issuer validation
  * 
- * SECURITY FIX (2024-12):
- * - Added proper JWT validation instead of relying on ParseUserInfoFilter
- * - Uses issuer-uri to derive JWKS endpoint automatically
- * 
- * If Keycloak is not available, tokens will fail validation (secure by default).
+ * SECURITY FIX (2024-12/2026-01):
+ * - Added support for split jwk-set-uri and expected-issuer configuration
+ * - This allows fetching keys from Docker-internal URL while validating tokens 
+ *   with external issuer (e.g., localhost:8888)
  */
 @Configuration
 public class JwtConfig {
@@ -28,30 +32,49 @@ public class JwtConfig {
     @Value("${jwt.issuer-uri:${spring.security.oauth2.resourceserver.jwt.issuer-uri:}}")
     private String issuerUri;
 
+    @Value("${jwt.jwk-set-uri:${spring.security.oauth2.resourceserver.jwt.jwk-set-uri:}}")
+    private String jwkSetUri;
+
+    @Value("${jwt.expected-issuer:}")
+    private String expectedIssuer;
+
     /**
      * JwtDecoder bean for validating JWT tokens.
      * 
      * Uses Nimbus JOSE + JWT library (included in spring-security-oauth2-jose).
-     * Automatically fetches public keys from Keycloak's JWK Set endpoint.
      * 
-     * @return JwtDecoder instance configured with Keycloak issuer URI
+     * If jwt.jwk-set-uri is configured, uses explicit key fetching with custom issuer validation.
+     * Otherwise, falls back to auto-discovery from issuer-uri.
+     * 
+     * @return JwtDecoder instance
      */
     @Bean
     public JwtDecoder jwtDecoder() {
-        // JwtDecoders.fromIssuerLocation() automatically:
-        // - Fetches /.well-known/openid-configuration from issuer
-        // - Extracts jwks_uri from the config
-        // - Configures signature verification with correct algorithms
-        // - Validates issuer claim
-        // - Caches public keys
+        // Option 1: Explicit JWK Set URI with separate expected issuer
+        if (jwkSetUri != null && !jwkSetUri.isEmpty()) {
+            NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+            
+            if (expectedIssuer != null && !expectedIssuer.isEmpty()) {
+                decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                    new JwtTimestampValidator(),
+                    new JwtIssuerValidator(expectedIssuer)
+                ));
+            } else {
+                decoder.setJwtValidator(new JwtTimestampValidator());
+            }
+            
+            return decoder;
+        }
+        
+        // Option 2: Auto-discovery from issuer URI
         if (issuerUri != null && !issuerUri.isEmpty()) {
             return JwtDecoders.fromIssuerLocation(issuerUri);
         }
         
-        // Fallback: Build manually with JWK Set URI
-        // This shouldn't happen if config is correct, but provides safety
         throw new IllegalStateException(
-            "JWT issuer URI not configured. Set jwt.issuer-uri or spring.security.oauth2.resourceserver.jwt.issuer-uri"
+            "JWT configuration missing. Set either:\n" +
+            "  - jwt.jwk-set-uri (with optional jwt.expected-issuer), OR\n" +
+            "  - jwt.issuer-uri / spring.security.oauth2.resourceserver.jwt.issuer-uri"
         );
     }
 }

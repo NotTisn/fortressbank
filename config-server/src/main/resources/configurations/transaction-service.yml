@@ -9,6 +9,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
+          # Note: jwk-set-uri is set below in jwt.* section for split issuer support
           issuer-uri: http://keycloak:8080/realms/fortressbank-realm
 
   datasource:
@@ -29,6 +30,15 @@ spring:
   sql:
     init:
       mode: never
+
+# JWT Configuration for split issuer support
+# - jwk-set-uri: Where to fetch public keys (Docker-internal Keycloak URL)
+# - expected-issuer: What issuer to expect in tokens (external URL that clients use)
+# This is needed because KC_HOSTNAME=localhost makes tokens have issuer=localhost:8888
+# but Docker services need to fetch keys from fortressbank-keycloak:8080
+jwt:
+  jwk-set-uri: http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/certs
+  expected-issuer: http://localhost:8888/realms/fortressbank-realm
 
 # Service Communication Configuration
 services:

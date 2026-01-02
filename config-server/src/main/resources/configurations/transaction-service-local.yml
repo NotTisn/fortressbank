@@ -30,6 +30,12 @@ eureka:
 keycloak:
   auth-server-url: http://localhost:8888
 
+# JWT Configuration for local development
+# When running locally, both JWKS and issuer are from localhost:8888
+jwt:
+  jwk-set-uri: http://localhost:8888/realms/fortressbank-realm/protocol/openid-connect/certs
+  expected-issuer: http://localhost:8888/realms/fortressbank-realm
+
 # Stripe - dummy keys for local dev
 stripe:
   api-key: sk_test_dummy_key_for_local_dev
