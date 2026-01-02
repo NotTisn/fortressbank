@@ -1,3 +1,16 @@
 server:
   port: 6000
   max-http-request-header-size: 64KB
+
+spring:
+  data:
+    redis:
+      host: redis
+      port: 6379
+      timeout: 2000ms
+
+# Velocity tracking thresholds (anti-salami slicing)
+risk:
+  velocity:
+    daily-limit: 50000  # Maximum cumulative daily transfer amount
+    window-hours: 24     # Sliding window duration

@@ -4,6 +4,7 @@ import com.uit.riskengine.client.UserRiskProfileClient;
 import com.uit.riskengine.dto.RiskAssessmentRequest;
 import com.uit.riskengine.dto.RiskAssessmentResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
@@ -11,8 +12,26 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Risk Engine Service - 7-Rule Fraud Detection System
+ * 
+ * Implements comprehensive fraud detection with the following rules:
+ * - Rule 1: High Transaction Amount (40 points)
+ * - Rule 2: Unusual Time of Day (30 points)
+ * - Rule 3: New Device (25 points)
+ * - Rule 4: Geolocation Anomaly (20 points)
+ * - Rule 5: New Payee (15 points)
+ * - Rule 6: Multiple Risk Factors (10 points)
+ * - Rule 7: Aggregate Daily Velocity (35 points) - Anti-Salami Slicing
+ * 
+ * Risk Thresholds:
+ * - 0-39: LOW (no challenge)
+ * - 40-69: MEDIUM (SMS_OTP required)
+ * - 70+: HIGH (SMART_OTP required)
+ */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RiskEngineService {
 
     private static final double HIGH_AMOUNT_THRESHOLD = 10000.0;
@@ -20,6 +39,7 @@ public class RiskEngineService {
     private static final int UNUSUAL_HOURS_END = 6;   // 6:00 AM
 
     private final UserRiskProfileClient userRiskProfileClient;
+    private final VelocityTrackingService velocityTrackingService;
     private final Clock clock;
 
     public RiskAssessmentResponse assessRisk(RiskAssessmentRequest request) {
@@ -80,13 +100,23 @@ public class RiskEngineService {
         }
 
         // ============================================================
-        // RULE 6: Velocity Check (NEW)
+        // RULE 6: Multiple Risk Factors Velocity Check
         // ============================================================
-        // Note: This would require transaction history from account-service
-        // For now, we detect if multiple risk factors are present (composite velocity)
         if (reasons.size() >= 3) {
             score += 10;
             reasons.add("Multiple risk factors detected (velocity concern).");
+        }
+
+        // ============================================================
+        // RULE 7: Aggregate Daily Velocity (ANTI-SALAMI SLICING)
+        // ============================================================
+        int velocityScore = velocityTrackingService.calculateVelocityRiskScore(
+                request.getUserId(), request.getAmount());
+        if (velocityScore > 0) {
+            score += velocityScore;
+            reasons.add(String.format(
+                    "Daily transfer velocity exceeded limit (%.2f limit, cumulative would exceed).",
+                    velocityTrackingService.getDailyLimit()));
         }
 
         // ============================================================
@@ -106,11 +136,20 @@ public class RiskEngineService {
             challengeType = "NONE";
         }
 
+        log.info("Risk assessment for user {}: score={}, level={}, reasons={}", 
+                request.getUserId(), score, riskLevel, reasons.size());
+
         RiskAssessmentResponse response = new RiskAssessmentResponse();
         response.setRiskLevel(riskLevel);
         response.setChallengeType(challengeType);
-        // Note: secureBank's risk engine returned score and reasons, but fortressbank's DTO only expects riskLevel and challengeType.
-        // If score and reasons are needed by account-service, RiskAssessmentResponse DTO in account-service needs to be updated.
         return response;
+    }
+
+    /**
+     * Record a completed transfer for velocity tracking.
+     * Should be called by account-service after successful transfer.
+     */
+    public void recordCompletedTransfer(String userId, java.math.BigDecimal amount) {
+        velocityTrackingService.recordTransfer(userId, amount);
     }
 }

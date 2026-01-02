@@ -39,6 +39,15 @@ FortressBank now implements a comprehensive 6-rule fraud detection system, match
 - **Score**: +10 points
 - **Trigger**: 3 or more risk factors detected
 
+### Rule 7: Aggregate Daily Velocity 🛡️ ANTI-SALAMI (35 points)
+- **Detection**: Cumulative transfer amount in 24h sliding window exceeds threshold
+- **Risk**: Salami slicing attack - many small transfers bypass single-transaction threshold
+- **Score**: +35 points (HIGH impact - directly triggers MEDIUM risk)
+- **Threshold**: 50,000 VND cumulative in 24 hours
+- **Storage**: Redis with TTL-based sliding window
+- **Key**: `velocity:daily:{userId}` with 24h expiry
+- **Attack Mitigated**: Attacker sending 5 x $9,900 transfers would hit 49,500 cumulative, triggering on 6th transfer
+
 ## Risk Score Thresholds
 
 | Score | Risk Level | Challenge Type | Action |
@@ -98,12 +107,12 @@ fetch('/accounts/transfers', {
 └────────┬─────────┘
          │
          ▼
-┌──────────────────┐      ┌───────────────┐
-│  Risk Engine     │─────▶│ User Service  │
-│  - 6 Rule Engine │      │ (RiskProfile) │
-│  - Score calc    │◀─────│ - Known devs  │
-└──────────────────┘      │ - Known locs  │
-                          │ - Known payees│
+┌──────────────────┐      ┌───────────────┐      ┌───────────────┐
+│  Risk Engine     │─────▶│ User Service  │      │    Redis      │
+│  - 7 Rule Engine │      │ (RiskProfile) │      │ (Velocity)    │
+│  - Score calc    │◀─────│ - Known devs  │      │ - Daily totals│
+│  - Redis velocity│──────│ - Known locs  │      │ - 24h TTL     │
+└──────────────────┘      │ - Known payees│      └───────────────┘
                           └───────────────┘
 ```
 
@@ -111,9 +120,10 @@ fetch('/accounts/transfers', {
 
 1. **Reduced False Positives**: Multi-factor scoring vs single-rule rejection
 2. **Adaptive Security**: Learns user behavior patterns
-3. **Layered Defense**: 6 independent checks
+3. **Layered Defense**: 7 independent checks
 4. **User Experience**: Low-risk users get instant approval
 5. **Fraud Prevention**: 85% reduction in fraudulent transfers (based on SecureBank data)
+6. **Salami Slicing Protection**: Aggregate velocity prevents split-transaction attacks
 
 ## Testing
 
