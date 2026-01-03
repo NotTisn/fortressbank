@@ -9,11 +9,15 @@
 #   .\dev-mode.ps1 -Logs        Open logs folder
 #   .\dev-mode.ps1 -ClearLogs   Clear logs only (no restart)
 #   .\dev-mode.ps1 -Kill        Kill all Java processes
+#   .\dev-mode.ps1 -Clean       Clean all Maven target directories
 #   .\dev-mode.ps1 -Infra       Start infrastructure only (Docker)
 #   .\dev-mode.ps1 -InfraDown   Stop infrastructure (Docker)
 #
 # NOTE: Logs are ALWAYS cleared on startup. Fresh run = fresh logs.
 #       Old logs are noise. Current problems are what matter.
+#
+# IMPORTANT: After switching git branches, run -Clean first!
+#            Stale class files in target/ can cause mysterious startup failures.
 #
 # Per copilot-instructions.md §7 TERMINAL DISCIPLINE
 # ============================================================================
@@ -25,7 +29,8 @@ param(
     [switch]$ClearLogs,
     [switch]$Kill,
     [switch]$Infra,
-    [switch]$InfraDown
+    [switch]$InfraDown,
+    [switch]$Clean
 )
 
 # ============================================================================
@@ -171,6 +176,25 @@ function Stop-AllJava {
     Get-Process java -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
     Write-Status "All Java processes stopped" "OK"
+}
+
+function Clean-AllTargets {
+    Write-Status "Cleaning all Maven target directories..." "WAIT"
+    
+    # Run mvn clean from the root
+    Push-Location $ROOT_DIR
+    try {
+        $result = & mvn clean 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Status "Maven clean completed successfully" "OK"
+        } else {
+            Write-Status "Maven clean failed - check Maven installation" "ERR"
+            Write-Host ($result | Out-String) -ForegroundColor Red
+        }
+    } catch {
+        Write-Status "Maven clean failed: $_" "ERR"
+    }
+    Pop-Location
 }
 
 function Start-InfrastructureOnly {
@@ -562,6 +586,12 @@ if ($InfraDown) {
     exit 0
 }
 
+if ($Clean) {
+    Show-Banner
+    Clean-AllTargets
+    exit 0
+}
+
 # ALWAYS clear old logs on startup - fresh run = fresh logs
 # (user can still use -ClearLogs to clear without starting, or -Logs to view)
 Clear-Logs
@@ -705,6 +735,7 @@ Write-Host "  Commands:" -ForegroundColor White
 Write-Host "    .\dev.bat -status     Check all services" -ForegroundColor DarkGray
 Write-Host "    .\dev.bat -logs       Open logs folder" -ForegroundColor DarkGray
 Write-Host "    .\dev.bat -kill       Stop all Java services" -ForegroundColor DarkGray
+Write-Host "    .\dev.bat -clean      Clean all target dirs (after branch switch!)" -ForegroundColor DarkGray
 Write-Host "    .\dev.bat -infra      Start infrastructure only" -ForegroundColor DarkGray
 Write-Host "    .\dev.bat -infradown  Stop infrastructure" -ForegroundColor DarkGray
 Write-Host ""

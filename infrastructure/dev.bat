@@ -10,10 +10,12 @@ REM   dev.bat -status      Show service status
 REM   dev.bat -logs        Open logs folder
 REM   dev.bat -clearlogs   Clear logs only (no restart)
 REM   dev.bat -kill        Kill all Java processes
+REM   dev.bat -clean       Clean all Maven target directories (use after switching branches!)
 REM   dev.bat -infra       Start infrastructure only (Docker)
 REM   dev.bat -infradown   Stop infrastructure (Docker)
 REM
 REM NOTE: Logs are ALWAYS cleared on startup. Fresh run = fresh logs.
+REM IMPORTANT: After switching git branches, run `dev -clean` first to avoid stale class files!
 REM
 REM Per copilot-instructions.md - One-command dev experience
 REM ============================================================================

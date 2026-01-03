@@ -19,10 +19,25 @@ That's it. All databases, Keycloak, Redis, RabbitMQ, Kong, and all Java services
 | `dev.bat -watch` | Start everything + centralized error watcher |
 | `dev.bat -status` | Show status of all services |
 | `dev.bat -logs` | Open logs folder |
+| `dev.bat -clearlogs` | Clear logs only (no restart) |
 | `dev.bat -kill` | Kill all Java processes |
+| `dev.bat -clean` | **Clean all Maven target directories (use after switching branches!)** |
 | `dev.bat -infra` | Start infrastructure only (Docker) |
 | `dev.bat -infradown` | Stop infrastructure (Docker) |
-| `dev.bat -clean` | Clear logs and restart |
+
+## ⚠️ Branch Switching (IMPORTANT!)
+
+**When switching git branches, always clean first to avoid stale class files:**
+
+```powershell
+cd infrastructure
+.\dev.bat -kill       # Stop running services
+.\dev.bat -clean      # Clean all Maven target directories
+git checkout <branch> # Switch branch
+.\dev.bat             # Start fresh
+```
+
+Stale `.class` files from a previous branch can cause mysterious errors that look like infrastructure problems (e.g., "Redis connection refused" when Redis is actually running).
 
 ## Smart Logging
 
