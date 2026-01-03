@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -14,16 +15,14 @@ import java.util.Base64;
 import java.util.Map;
 
 /**
- * DEPRECATED: This filter is no longer used.
- * JWT authentication is now handled by Spring Security OAuth2 Resource Server.
+ * Parses JWT token from Authorization header and extracts user info.
+ * Sets userInfo as request attribute for controllers to use.
  * 
- * @see com.uit.accountservice.config.SecurityConfig
- * @see com.uit.accountservice.config.JwtConfig
- * 
- * This class is kept for reference but disabled by removing @Component.
- * Delete this file in a future cleanup.
+ * Note: This runs alongside Spring Security OAuth2 Resource Server.
+ * OAuth2 Resource Server validates the JWT signature.
+ * This filter extracts claims for backward compatibility with existing controllers.
  */
-// @Component - DISABLED: Replaced by OAuth2 Resource Server JWT authentication
+@Component
 public class ParseUserInfoFilter implements Filter {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -39,6 +38,31 @@ public class ParseUserInfoFilter implements Filter {
         // Skip authentication for internal and public endpoints
         String requestPath = httpRequest.getRequestURI();
         if (requestPath.startsWith("/accounts/internal/") || requestPath.startsWith("/accounts/public/") || requestPath.startsWith("/cards/internal")) {
+            chain.doFilter(request, response);
+            return;
+        }
+
+        // If authentication already exists (e.g., from Spring Security OAuth2 Resource Server or tests),
+        // just extract userInfo from the existing JWT token and continue
+        var existingAuth = SecurityContextHolder.getContext().getAuthentication();
+        if (existingAuth != null && existingAuth.isAuthenticated() 
+                && !"anonymousUser".equals(existingAuth.getPrincipal())) {
+            // Auth already set by OAuth2 Resource Server - try to extract userInfo from Authorization header
+            // This provides backward compatibility for controllers that use request.getAttribute("userInfo")
+            String authHeader = httpRequest.getHeader("Authorization");
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                try {
+                    String token = authHeader.substring(7).trim();
+                    String[] chunks = token.split("\\.");
+                    if (chunks.length >= 2) {
+                        String payload = new String(Base64.getUrlDecoder().decode(chunks[1]), StandardCharsets.UTF_8);
+                        Map<String, Object> userInfo = objectMapper.readValue(payload, Map.class);
+                        httpRequest.setAttribute("userInfo", userInfo);
+                    }
+                } catch (Exception e) {
+                    log.debug("Could not extract userInfo from existing auth: {}", e.getMessage());
+                }
+            }
             chain.doFilter(request, response);
             return;
         }
@@ -92,8 +116,7 @@ public class ParseUserInfoFilter implements Filter {
             httpResponse.setContentType("application/json");
             // Trả về lỗi chi tiết hơn cho Postman
             httpResponse.getWriter().write("{\"error\":\"Bad Request: " + e.getMessage() + "\"}");
-        } finally {
-            SecurityContextHolder.clearContext();
         }
+        // Note: Do NOT clear SecurityContext here - let Spring Security handle the lifecycle
     }
 }
