@@ -3,6 +3,7 @@ package com.uit.userservice.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
@@ -49,9 +50,12 @@ public class JwtConfig {
      * If jwt.jwk-set-uri is configured, uses explicit key fetching with custom issuer validation.
      * Otherwise, falls back to auto-discovery from issuer-uri.
      * 
+     * Note: This bean is disabled in 'test' profile - tests use @MockBean or TestSecurityConfig.
+     * 
      * @return JwtDecoder instance
      */
     @Bean
+    @Profile("!test")
     public JwtDecoder jwtDecoder() {
         // Option 1: Explicit JWK Set URI with separate expected issuer
         // Useful for Docker environments where JWKS is fetched internally
