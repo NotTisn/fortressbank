@@ -182,6 +182,30 @@ plugins:
       token_endpoint_auth_method: "client_secret_post"
       introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
 
+  # CORS configuration for development
+  - name: cors
+    config:
+      origins:
+        - "http://localhost:5174"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Authorization
+        - Content-Type
+        - X-Request-ID
+        - Accept
+        - Origin
+      exposed_headers:
+        - X-RateLimit-Limit-Minute
+        - X-RateLimit-Remaining-Minute
+      credentials: true
+      max_age: 3600
+
   # GLOBAL rate limit
   # SECURITY NOTE: In production with multiple Kong instances, use policy: redis
   # to share counters across nodes. With policy: local, each node has its own
