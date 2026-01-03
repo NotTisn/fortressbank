@@ -30,5 +30,7 @@ public class TransactionResponse {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;
+    
     private String failureReason;
+    private boolean requireFaceAuth;
 }

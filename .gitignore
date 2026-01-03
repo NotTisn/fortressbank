@@ -69,4 +69,3 @@ bootstrap.yml
 
 notification-service/src/main/resources/application.yml
 
-target/

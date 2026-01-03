@@ -2,6 +2,7 @@ package com.uit.transactionservice.controller;
 
 import com.uit.sharedkernel.api.ApiResponse;
 import com.uit.transactionservice.dto.VerifyOTPRequest;
+import com.uit.transactionservice.dto.request.ConfirmFaceAuthRequest;
 import com.uit.transactionservice.dto.request.CreateTransferRequest;
 import com.uit.transactionservice.dto.request.ResendOtpRequest;
 import com.uit.transactionservice.dto.response.TransactionLimitResponse;
@@ -49,7 +50,7 @@ public class TransactionController {
             @SuppressWarnings("unchecked")
             Map<String, Object> userInfo = (Map<String, Object>) httpRequest.getAttribute("userInfo");
             String userId = "test-user"; // Default for testing
-            String phoneNumber = "0857311444"; // Default for testing
+            String phoneNumber = "+84857311444"; // Default for testing
             
             if (userInfo != null) {
                 userId = (String) userInfo.get("sub");
@@ -182,5 +183,17 @@ public class TransactionController {
 
         TransactionLimitResponse response = transactionLimitService.getTransactionLimits(accountId);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * Internal endpoint for User Service to confirm FaceID success.
+     * POST /transactions/internal/face-auth-success
+     */
+    @PostMapping("/internal/face-auth-success")
+    public ResponseEntity<ApiResponse<Void>> confirmFaceAuth(
+            @RequestBody ConfirmFaceAuthRequest request) {
+        
+        transactionService.confirmFaceAuth(request);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }
