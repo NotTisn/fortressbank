@@ -16,10 +16,10 @@ spring:
     console:
       enabled: true
   flyway:
-    enabled: false  # Disable Flyway for tests, use Hibernate to create schema
+    enabled: false # Disable Flyway for tests, use Hibernate to create schema
   cloud:
     config:
-      enabled: false  # Disable config server for tests
+      enabled: false # Disable config server for tests
   security:
     oauth2:
       resourceserver:
