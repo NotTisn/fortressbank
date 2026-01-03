@@ -3,7 +3,7 @@ spring:
     name: transaction-service
   cloud:
     config:
-      uri: ${SPRING_CLOUD_CONFIG_URI}
+      uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8889}
   jpa:
     hibernate:
       ddl-auto: validate # Flyway manages schema, Hibernate only validates
@@ -20,11 +20,10 @@ spring:
     repair-on-migrate: true
 
   rabbitmq:
-    # host: host.docker.internal
-    host: localhost
-    port: 5672
-    username: guest
-    password: guest
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -38,13 +37,13 @@ jwt:
 # Service Communication Configuration
 services:
   account-service:
-    url: ${ACCOUNT_SERVICE_URL:http://account-service:4001}
+    url: ${ACCOUNT_SERVICE_URL:http://localhost:4001}
     timeout: 5000 # 5 seconds timeout for sync calls
 
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://discovery:8761/eureka
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
 
 # Stripe Configuration
 stripe:

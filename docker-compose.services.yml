@@ -10,6 +10,8 @@ services:
       # args:
       #   - MAVEN_OPTS=-Xmx512m
     container_name: discovery
+    environment:
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
     ports:
       - "8761:8761"
     healthcheck:
@@ -65,6 +67,8 @@ services:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
       SERVER_PORT: ${USER_SERVICE_PORT}
       SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
 
       # Redis
       REDIS_HOST: ${REDIS_HOST}
@@ -115,6 +119,7 @@ services:
       SERVER_PORT: 4001
       SPRING_REDIS_HOST: redis
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery:8761/eureka/
       JWT_ISSUER_URI: http://keycloak:8080/realms/fortressbank-realm
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
@@ -152,6 +157,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: 4002
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery:8761/eureka/
 
       # Datasource configuration
       SPRING_DATASOURCE_URL: jdbc:postgresql://notification-service-db:5432/${NOTIFICATION_DB_NAME}
@@ -193,6 +199,8 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: 4004
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery:8761/eureka/
+      ACCOUNT_SERVICE_URL: http://account-service:4001
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_ISSUER_URI: http://keycloak:8080/realms/fortressbank-realm
@@ -237,6 +245,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       SERVER_PORT: 4005
       SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery:8761/eureka/
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: 5672
     depends_on:

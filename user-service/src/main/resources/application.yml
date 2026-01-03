@@ -19,7 +19,7 @@ spring:
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
 
 keycloak:
-  auth-server-url: http://keycloak:8080
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8888}
   realm: fortressbank-realm
   client-id: kong
   client-secret: pmFStZwGO8sb0mBDkZmP5niE3wmEELqe
@@ -32,4 +32,4 @@ fortress-bank:
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://discovery:8761/eureka
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
