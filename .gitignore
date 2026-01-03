@@ -28,6 +28,12 @@ notification-service/target/
 risk-engine/target/
 user-service/target/
 keycloak-extensions/target/
+audit-service/target/
+transaction-service/target/
+reference-service/target/
+discovery/target/
+config-server/target/
+shared-kernel/target/
 
 # IntelliJ IDEA files
 .idea/
@@ -72,3 +78,7 @@ notification-service/src/main/resources/application.yml
 target/
 # Security test tokens
 access_token.txt
+
+# Temp/debug files
+_*.txt
+infrastructure/_*.txt
