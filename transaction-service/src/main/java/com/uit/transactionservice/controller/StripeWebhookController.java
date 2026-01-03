@@ -57,12 +57,10 @@ public class StripeWebhookController {
             // Handle based on event type
             switch (event.getType()) {
                 case "transfer.created":
-                    // Platform event - just log, actual confirmation comes from payment.created
                     log.info("Platform transfer created - EventID: {}", event.getId());
                     break;
                     
                 case "payment.created":
-                    // Connected Account received funds - THIS CONFIRMS USER B GOT MONEY
                     if (accountId != null) {
                         handlePaymentCreated(event, accountId);
                     }
@@ -101,7 +99,7 @@ public class StripeWebhookController {
         try {
             String webhookIdempotencyKey = event.getId();
             
-            log.info("📥 Processing payment.created - EventID: {} - API Version: {}", webhookIdempotencyKey, event.getApiVersion());
+            log.info(" Processing payment.created - EventID: {} - API Version: {}", webhookIdempotencyKey, event.getApiVersion());
             
             // Deserialize the nested object inside the event
             com.stripe.model.EventDataObjectDeserializer dataObjectDeserializer = event.getDataObjectDeserializer();

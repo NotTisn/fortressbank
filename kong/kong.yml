@@ -89,6 +89,15 @@ services:
           - /user-preferences
         strip_path: false
 
+  # risk-engine (Public for testing)
+  - name: risk-engine
+    url: http://risk-engine:6000/assess
+    routes:
+      - name: risk-engine-route
+        paths:
+          - /risk
+        strip_path: true
+
 # ============================================================================
 # AUTHENTICATION CONFIGURATION
 # ============================================================================
@@ -181,6 +190,30 @@ plugins:
       bearer_only: true
       token_endpoint_auth_method: "client_secret_post"
       introspection_endpoint: "http://keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+
+  # CORS configuration for development
+  - name: cors
+    config:
+      origins:
+        - "http://localhost:5174"
+      methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Authorization
+        - Content-Type
+        - X-Request-ID
+        - Accept
+        - Origin
+      exposed_headers:
+        - X-RateLimit-Limit-Minute
+        - X-RateLimit-Remaining-Minute
+      credentials: true
+      max_age: 3600
 
   # GLOBAL rate limit
   # SECURITY NOTE: In production with multiple Kong instances, use policy: redis
