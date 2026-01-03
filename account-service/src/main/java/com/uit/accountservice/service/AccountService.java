@@ -417,12 +417,16 @@ public class AccountService {
 
         // Determine account number based on accountNumberType
         if ("PHONE_NUMBER".equals(request.accountNumberType())) {
-            // Auto-fetch phone number from user-service
-            String phoneNumber = fetchPhoneNumberFromUserService(userId);
-
-            if (phoneNumber == null || phoneNumber.isEmpty()) {
-                throw new AppException(ErrorCode.BAD_REQUEST,
-                    "User does not have a phone number registered. Please update your profile first or use AUTO_GENERATE.");
+            // Use phone number from request if provided, otherwise fetch from user-service
+            String phoneNumber;
+            if (request.phoneNumber() != null && !request.phoneNumber().isEmpty()) {
+                phoneNumber = request.phoneNumber();
+            } else {
+                phoneNumber = fetchPhoneNumberFromUserService(userId);
+                if (phoneNumber == null || phoneNumber.isEmpty()) {
+                    throw new AppException(ErrorCode.BAD_REQUEST,
+                        "User does not have a phone number registered. Please update your profile first or use AUTO_GENERATE.");
+                }
             }
 
             accountNumber = phoneNumber;
@@ -654,6 +658,273 @@ public class AccountService {
         if (pin == null || !pin.matches("\\d{6}")) {
             throw new AppException(ErrorCode.BAD_REQUEST, "PIN must be exactly 6 digits");
         }
+    }
+
+    // ==================== ADMIN OPERATIONS ====================
+
+    /**
+     * Get all accounts with pagination (Admin only).
+     * Returns paginated list of all accounts in the system.
+     *
+     * @param pageable Pagination parameters (page, size, sort)
+     * @return Page of AccountDto with user information
+     */
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<AccountDto> getAllAccountsPaged(org.springframework.data.domain.Pageable pageable) {
+        log.info("Admin fetching all accounts - Page: {}, Size: {}", pageable.getPageNumber(), pageable.getPageSize());
+
+        org.springframework.data.domain.Page<Account> accountsPage = accountRepository.findAll(pageable);
+
+        // Map to DTO and fetch user information for each account
+        return accountsPage.map(account -> {
+            AccountDto dto = accountMapper.toDto(account);
+
+            // Fetch user's full name from user-service
+            try {
+                ApiResponse<UserResponse> userResponse = userClient.getUserById(account.getUserId());
+                if (userResponse != null && userResponse.getData() != null) {
+                    dto.setFullName(userResponse.getData().fullName());
+                } else {
+                    dto.setFullName("Unknown User");
+                }
+            } catch (Exception e) {
+                log.error("Failed to fetch user info for userId: {} - {}", account.getUserId(), e.getMessage());
+                dto.setFullName("Unknown User");
+            }
+
+            return dto;
+        });
+    }
+
+    /**
+     * Get account by ID (Admin only).
+     * No ownership check - admin can view any account.
+     *
+     * @param accountId Account ID to retrieve
+     * @return AccountDto with user information
+     */
+    @Transactional(readOnly = true)
+    public AccountDto getAccountById(String accountId) {
+        log.info("Admin fetching account by ID: {}", accountId);
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_FOUND,
+                    "Account not found with ID: " + accountId));
+
+        AccountDto dto = accountMapper.toDto(account);
+
+        // Fetch user's full name
+        try {
+            ApiResponse<UserResponse> userResponse = userClient.getUserById(account.getUserId());
+            if (userResponse != null && userResponse.getData() != null) {
+                dto.setFullName(userResponse.getData().fullName());
+            } else {
+                dto.setFullName("Unknown User");
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch user info for userId: {} - {}", account.getUserId(), e.getMessage());
+            dto.setFullName("Unknown User");
+        }
+
+        return dto;
+    }
+
+    /**
+     * Update account (Admin only).
+     * Allows admin to update account status.
+     *
+     * @param accountId Account ID to update
+     * @param request Update request containing fields to update
+     * @return Updated AccountDto
+     */
+    @Transactional
+    public AccountDto updateAccount(String accountId, com.uit.accountservice.dto.request.UpdateAccountRequest request) {
+        log.info("Admin updating account: {} - New status: {}", accountId, request.status());
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_FOUND,
+                    "Account not found with ID: " + accountId));
+
+        String oldStatus = account.getStatus() != null ? account.getStatus().name() : null;
+
+        // Update status if provided
+        if (request.status() != null && !request.status().isEmpty()) {
+            try {
+                AccountStatus newStatus = AccountStatus.valueOf(request.status());
+
+                // Business rule: Cannot close account with non-zero balance
+                if (newStatus == AccountStatus.CLOSED &&
+                    account.getBalance().compareTo(BigDecimal.ZERO) > 0) {
+                    throw new AppException(ErrorCode.ACCOUNT_CLOSE_NONZERO_BALANCE,
+                        "Cannot close account with non-zero balance. Current balance: " + account.getBalance());
+                }
+
+                account.setStatus(newStatus);
+                log.info("Account {} status changed from {} to {}", accountId, oldStatus, newStatus);
+
+            } catch (IllegalArgumentException e) {
+                throw new AppException(ErrorCode.BAD_REQUEST,
+                    "Invalid account status: " + request.status());
+            }
+        }
+
+        Account updatedAccount = accountRepository.save(account);
+
+        // Centralized Audit Log
+        try {
+            AuditEventDto auditEvent = AuditEventDto.builder()
+                    .serviceName("account-service")
+                    .entityType("Account")
+                    .entityId(accountId)
+                    .action("UPDATE_ACCOUNT")
+                    .userId("ADMIN")
+                    .oldValues(Map.of("status", oldStatus != null ? oldStatus : "N/A"))
+                    .newValues(Map.of("status", updatedAccount.getStatus().name()))
+                    .changes("Admin updated account status")
+                    .result("SUCCESS")
+                    .build();
+            auditEventPublisher.publishAuditEvent(auditEvent);
+        } catch (Exception e) {
+            log.error("Failed to publish audit event for account update: {}", e.getMessage());
+        }
+
+        AccountDto dto = accountMapper.toDto(updatedAccount);
+
+        // Fetch user's full name
+        try {
+            ApiResponse<UserResponse> userResponse = userClient.getUserById(account.getUserId());
+            if (userResponse != null && userResponse.getData() != null) {
+                dto.setFullName(userResponse.getData().fullName());
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch user info: {}", e.getMessage());
+        }
+
+        return dto;
+    }
+
+    /**
+     * Lock account (Admin only).
+     * Convenience method to lock an account.
+     *
+     * @param accountId Account ID to lock
+     * @return Updated AccountDto
+     */
+    @Transactional
+    public AccountDto lockAccount(String accountId) {
+        log.info("Admin locking account: {}", accountId);
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_FOUND,
+                    "Account not found with ID: " + accountId));
+
+        // Check current status
+        if (account.getStatus() == AccountStatus.LOCKED) {
+            throw new AppException(ErrorCode.ACCOUNT_STATUS_CONFLICT,
+                "Account is already locked");
+        }
+
+        if (account.getStatus() == AccountStatus.CLOSED) {
+            throw new AppException(ErrorCode.ACCOUNT_STATUS_CONFLICT,
+                "Cannot lock a closed account");
+        }
+
+        String oldStatus = account.getStatus().name();
+        account.setStatus(AccountStatus.LOCKED);
+        Account updatedAccount = accountRepository.save(account);
+
+        log.info("Account {} locked successfully. Previous status: {}", accountId, oldStatus);
+
+        // Centralized Audit Log
+        try {
+            AuditEventDto auditEvent = AuditEventDto.builder()
+                    .serviceName("account-service")
+                    .entityType("Account")
+                    .entityId(accountId)
+                    .action("LOCK_ACCOUNT")
+                    .userId("ADMIN")
+                    .oldValues(Map.of("status", oldStatus))
+                    .newValues(Map.of("status", AccountStatus.LOCKED.name()))
+                    .changes("Admin locked account")
+                    .result("SUCCESS")
+                    .build();
+            auditEventPublisher.publishAuditEvent(auditEvent);
+        } catch (Exception e) {
+            log.error("Failed to publish audit event for account lock: {}", e.getMessage());
+        }
+
+        AccountDto dto = accountMapper.toDto(updatedAccount);
+
+        // Fetch user's full name
+        try {
+            ApiResponse<UserResponse> userResponse = userClient.getUserById(account.getUserId());
+            if (userResponse != null && userResponse.getData() != null) {
+                dto.setFullName(userResponse.getData().fullName());
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch user info: {}", e.getMessage());
+        }
+
+        return dto;
+    }
+
+    /**
+     * Unlock account (Admin only).
+     * Convenience method to unlock a locked account.
+     *
+     * @param accountId Account ID to unlock
+     * @return Updated AccountDto
+     */
+    @Transactional
+    public AccountDto unlockAccount(String accountId) {
+        log.info("Admin unlocking account: {}", accountId);
+
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_FOUND,
+                    "Account not found with ID: " + accountId));
+
+        // Check current status
+        if (account.getStatus() != AccountStatus.LOCKED) {
+            throw new AppException(ErrorCode.ACCOUNT_STATUS_CONFLICT,
+                "Only locked accounts can be unlocked. Current status: " + account.getStatus());
+        }
+
+        account.setStatus(AccountStatus.ACTIVE);
+        Account updatedAccount = accountRepository.save(account);
+
+        log.info("Account {} unlocked successfully", accountId);
+
+        // Centralized Audit Log
+        try {
+            AuditEventDto auditEvent = AuditEventDto.builder()
+                    .serviceName("account-service")
+                    .entityType("Account")
+                    .entityId(accountId)
+                    .action("UNLOCK_ACCOUNT")
+                    .userId("ADMIN")
+                    .oldValues(Map.of("status", AccountStatus.LOCKED.name()))
+                    .newValues(Map.of("status", AccountStatus.ACTIVE.name()))
+                    .changes("Admin unlocked account")
+                    .result("SUCCESS")
+                    .build();
+            auditEventPublisher.publishAuditEvent(auditEvent);
+        } catch (Exception e) {
+            log.error("Failed to publish audit event for account unlock: {}", e.getMessage());
+        }
+
+        AccountDto dto = accountMapper.toDto(updatedAccount);
+
+        // Fetch user's full name
+        try {
+            ApiResponse<UserResponse> userResponse = userClient.getUserById(account.getUserId());
+            if (userResponse != null && userResponse.getData() != null) {
+                dto.setFullName(userResponse.getData().fullName());
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch user info: {}", e.getMessage());
+        }
+
+        return dto;
     }
 
 }
