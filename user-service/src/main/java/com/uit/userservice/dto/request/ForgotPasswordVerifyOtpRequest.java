@@ -8,8 +8,7 @@ import lombok.*;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class VerifyOtpRequest {
-
+public class ForgotPasswordVerifyOtpRequest {
     @NotBlank(message = "PHONE_NUMBER_REQUIRED")
     @Pattern(regexp = "^\\+84[0-9]{9,10}$", message = "PHONE_NUMBER_INVALID_FORMAT")
     private String phoneNumber;

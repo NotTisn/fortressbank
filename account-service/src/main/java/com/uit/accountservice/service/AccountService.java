@@ -426,7 +426,21 @@ public class AccountService {
                 }
             }
 
-            accountNumber = phoneNumber;
+            // Convert international format (+84...) to Vietnamese local format (0...)
+            // Example: +84857311444 → 0857311444
+            if (phoneNumber.startsWith("+84")) {
+                accountNumber = "0" + phoneNumber.substring(3);
+            } else if (phoneNumber.startsWith("84")) {
+                accountNumber = "0" + phoneNumber.substring(2);
+            } else if (phoneNumber.startsWith("0")) {
+                accountNumber = phoneNumber; // Already in correct format
+            } else {
+                // Fallback: use as-is but log warning
+                accountNumber = phoneNumber;
+                log.warn("Phone number format unexpected: {}. Using as-is for account number.", phoneNumber);
+            }
+
+            log.info("Phone-based account number: {} (from phone: {})", accountNumber, phoneNumber);
 
             // Check if account with this phone number already exists (globally)
             if (accountRepository.findByAccountNumber(accountNumber).isPresent()) {
@@ -922,6 +936,80 @@ public class AccountService {
         }
 
         return dto;
+    }
+
+    // ==================== ADMIN OPERATIONS ====================
+
+    /**
+     * Admin creates account for a user.
+     * This method wraps createAccount() with additional admin-specific audit logging.
+     * 
+     * All validations and features from createAccount() are applied:
+     * - Phone number uniqueness: Only ONE account can use each phone number globally
+     * - User cannot have duplicate account numbers  
+     * - Automatic card creation for the new account (if fullName provided)
+     * - PIN encoding and storage
+     * 
+     * @param userId The user ID for whom the account is being created
+     * @param request CreateAccountRequest with accountNumberType, phoneNumber, and PIN
+     * @param fullName User's full name for card creation (fetched from user-service in controller)
+     * @return AccountDto of the created account
+     */
+    @Transactional
+    public AccountDto adminCreateAccount(String userId, CreateAccountRequest request, String fullName) {
+        log.info("[ADMIN] Creating account for userId: {} - Type: {} - FullName: {}", 
+                userId, request.accountNumberType(), fullName);
+
+        // Reuse existing createAccount logic which includes:
+        // 1. Phone number validation (only 1 account per phone globally)
+        // 2. Account number uniqueness check for this user
+        // 3. Fetch fullName from user-service if not provided
+        // 4. Automatic card creation via cardService.createInitialCard()
+        // 5. PIN encoding and storage
+        AccountDto createdAccount = createAccount(userId, request, fullName);
+
+        // Additional admin-specific audit log to track admin actions
+        try {
+            AuditEventDto adminAudit = AuditEventDto.builder()
+                    .serviceName("account-service")
+                    .entityType("Account")
+                    .entityId(createdAccount.getAccountId())
+                    .action("ADMIN_CREATE_ACCOUNT")
+                    .userId("ADMIN") // Mark this as admin action
+                    .newValues(Map.of(
+                        "targetUserId", userId,
+                        "accountNumber", createdAccount.getAccountNumber(),
+                        "accountNumberType", request.accountNumberType(),
+                        "hasPin", request.pin() != null ? "YES" : "NO"
+                    ))
+                    .changes("Admin created account for user: " + userId)
+                    .result("SUCCESS")
+                    .build();
+            auditEventPublisher.publishAuditEvent(adminAudit);
+        } catch (Exception e) {
+            log.error("Failed to publish admin audit event: {}", e.getMessage());
+        }
+
+        log.info("[ADMIN] Successfully created account {} for user {}", 
+                createdAccount.getAccountId(), userId);
+        return createdAccount;
+    }
+
+    /**
+     * Admin updates PIN for an account without requiring old PIN
+     */
+    @Transactional
+    public void adminUpdatePin(String accountId, String newPin) {
+        validatePinFormat(newPin);
+        
+        Account account = accountRepository.findById(accountId)
+                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_FOUND));
+
+        // Admin can set/update PIN without old PIN verification
+        account.setPinHash(passwordEncoder.encode(newPin));
+        accountRepository.save(account);
+        
+        log.info("Admin updated PIN for account: {}", accountId);
     }
 
 }

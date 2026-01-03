@@ -34,6 +34,13 @@ spring:
           max-idle: 8
           min-idle: 0
 
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: guest
+    password: guest
+
   # Email Configuration - SendGrid
   mail:
     host: ${MAIL_HOST:smtp.sendgrid.net}
