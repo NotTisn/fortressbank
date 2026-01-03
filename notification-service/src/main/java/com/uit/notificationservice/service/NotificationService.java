@@ -42,7 +42,7 @@ public class NotificationService {
     public void sendSmsOtp(String phoneNumber, String otpCode) {
         String url = "https://api.textbee.dev/api/v1/gateway/devices/" + deviceId + "/send-sms";
 
-        TextBeeRequest request = new TextBeeRequest(new String[]{"0857311444"}, "Your FortressBank verification code is: " + otpCode);
+        TextBeeRequest request = new TextBeeRequest(new String[]{phoneNumber}, "Your FortressBank verification code is: " + otpCode);
 
         webClientBuilder.build()
                 .post()
