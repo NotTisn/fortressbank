@@ -8,9 +8,32 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: true
+    database-platform: org.hibernate.dialect.H2Dialect
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
   h2:
     console:
       enabled: true
+  flyway:
+    enabled: false  # Disable Flyway for tests, use Hibernate to create schema
+  cloud:
+    config:
+      enabled: false  # Disable config server for tests
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8888/realms/fortressbank-realm
+          jwk-set-uri: http://localhost:8888/realms/fortressbank-realm/protocol/openid-connect/certs
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.oauth2.resource.servlet.OAuth2ResourceServerAutoConfiguration
+
+# Mock Stripe configuration for tests
+stripe:
+  api-key: sk_test_mock_key_for_testing
+  webhook-secret: whsec_test_mock_secret_for_testing
 
 logging:
   level:

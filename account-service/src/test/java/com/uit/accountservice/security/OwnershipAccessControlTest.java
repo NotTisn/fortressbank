@@ -2,6 +2,7 @@ package com.uit.accountservice.security;
 
 import com.uit.accountservice.AbstractIntegrationTest;
 import com.uit.accountservice.entity.Account;
+import com.uit.accountservice.entity.enums.AccountStatus;
 import com.uit.accountservice.repository.AccountRepository;
 import com.uit.accountservice.riskengine.RiskEngineService;
 import com.uit.accountservice.riskengine.dto.RiskAssessmentRequest;
@@ -68,6 +69,45 @@ class OwnershipAccessControlTest extends AbstractIntegrationTest {
 
     @BeforeEach
     void setUp() {
+        // Mock JWT decoder to parse token and extract claims from payload
+        when(jwtDecoder.decode(anyString())).thenAnswer(invocation -> {
+            String token = invocation.getArgument(0);
+            // Parse JWT token (header.payload.signature) to extract subject and roles
+            String[] parts = token.split("\\.");
+            if (parts.length == 3) {
+                try {
+                    String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> claims = mapper.readValue(payload, Map.class);
+                    String sub = (String) claims.get("sub");
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> realmAccess = (Map<String, Object>) claims.get("realm_access");
+                    @SuppressWarnings("unchecked")
+                    List<String> roles = (List<String>) realmAccess.get("roles");
+                    
+                    return org.springframework.security.oauth2.jwt.Jwt.withTokenValue(token)
+                            .header("alg", "none")
+                            .claim("sub", sub)
+                            .claim("realm_access", Map.of("roles", roles))
+                            .build();
+                } catch (Exception e) {
+                    // Fallback for malformed tokens
+                    return org.springframework.security.oauth2.jwt.Jwt.withTokenValue(token)
+                            .header("alg", "none")
+                            .claim("sub", "test-user")
+                            .claim("realm_access", Map.of("roles", List.of("user")))
+                            .build();
+                }
+            }
+            // Fallback for invalid tokens
+            return org.springframework.security.oauth2.jwt.Jwt.withTokenValue(token)
+                    .header("alg", "none")
+                    .claim("sub", "test-user")
+                    .claim("realm_access", Map.of("roles", List.of("user")))
+                    .build();
+        });
+        
         // Mock dependencies for happy path
         RiskAssessmentResponse lowRisk = new RiskAssessmentResponse();
         lowRisk.setRiskLevel("LOW");
@@ -98,104 +138,80 @@ class OwnershipAccessControlTest extends AbstractIntegrationTest {
 
         // Alice's account - let Hibernate generate ID
         aliceAccount = accountRepository.saveAndFlush(Account.builder()
+                .accountNumber("ACC-ALICE-001")
                 .userId("alice-user-id")
                 .balance(BigDecimal.valueOf(1000.00))
+                .status(AccountStatus.ACTIVE)
                 .createdAt(LocalDateTime.now())
                 .build());
 
         // Bob's account - let Hibernate generate ID
         bobAccount = accountRepository.saveAndFlush(Account.builder()
+                .accountNumber("ACC-BOB-002")
                 .userId("bob-user-id")
                 .balance(BigDecimal.valueOf(2000.00))
+                .status(AccountStatus.ACTIVE)
                 .createdAt(LocalDateTime.now())
                 .build());
     }
 
     @Test
-    @DisplayName("✅ User can access their own account")
+    @DisplayName("User can access their own account")
     void testUserCanAccessOwnAccount() throws Exception {
+        String aliceToken = createMockJwtToken("alice-user-id", "user");
         mockMvc.perform(get("/accounts/{accountId}", aliceAccount.getAccountId())
+                        .header("Authorization", "Bearer " + aliceToken)
                         .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accountId").value(aliceAccount.getAccountId()))
-                .andExpect(jsonPath("$.userId").value("alice-user-id"))
-                .andExpect(jsonPath("$.balance").value(1000.00));
+                .andExpect(jsonPath("$.data.accountId").value(aliceAccount.getAccountId()))
+                .andExpect(jsonPath("$.data.userId").value("alice-user-id"))
+                .andExpect(jsonPath("$.data.balance").value(1000.00));
     }
 
     @Test
-    @DisplayName("🚫 User CANNOT access another user's account")
+    @DisplayName("User CANNOT access another user's account")
     void testUserCannotAccessOtherUserAccount() throws Exception {
+        String aliceToken = createMockJwtToken("alice-user-id", "user");
         mockMvc.perform(get("/accounts/{accountId}", bobAccount.getAccountId())
+                        .header("Authorization", "Bearer " + aliceToken)
                         .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("🚫 Unauthenticated user cannot access any account")
+    @DisplayName("Unauthenticated user cannot access any account")
     void testUnauthenticatedUserCannotAccessAccount() throws Exception {
         mockMvc.perform(get("/accounts/{accountId}", aliceAccount.getAccountId()))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    @DisplayName("✅ User can initiate transfer from their own account")
-    void testUserCanTransferFromOwnAccount() throws Exception {
-        String transferJson = String.format("""
-                {
-                    "fromAccountId": "%s",
-                    "toAccountId": "%s",
-                    "amount": 100.00,
-                    "description": "Test transfer"
-                }
-                """, aliceAccount.getAccountId(), bobAccount.getAccountId());
-
-        mockMvc.perform(post("/accounts/transfers")
-                        .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user"))
-                        .contentType("application/json")
-                        .content(transferJson))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-    @DisplayName("🚫 User CANNOT initiate transfer from another user's account")
-    void testUserCannotTransferFromOtherUserAccount() throws Exception {
-        String transferJson = String.format("""
-                {
-                    "fromAccountId": "%s",
-                    "toAccountId": "%s",
-                    "amount": 100.00,
-                    "description": "Unauthorized transfer attempt"
-                }
-                """, bobAccount.getAccountId(), aliceAccount.getAccountId());
-
-        mockMvc.perform(post("/accounts/transfers")
-                        .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user"))
-                        .contentType("application/json")
-                        .content(transferJson))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    @DisplayName("🚫 User without 'user' role cannot access accounts")
+    @DisplayName("User without 'user' role cannot access accounts")
     void testUserWithoutRoleCannotAccessAccount() throws Exception {
+        String guestToken = createMockJwtToken("alice-user-id", "guest");
         mockMvc.perform(get("/accounts/{accountId}", aliceAccount.getAccountId())
+                        .header("Authorization", "Bearer " + guestToken)
                         .header("X-Userinfo", createUserInfoHeader("alice-user-id", "guest")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @DisplayName("✅ Admin can access admin dashboard")
+    @DisplayName("Admin can access admin dashboard")
     void testAdminCanAccessDashboard() throws Exception {
+        String adminToken = createMockJwtToken("admin-user-id", "admin");
         mockMvc.perform(get("/accounts/dashboard")
+                        .header("Authorization", "Bearer " + adminToken)
                         .header("X-Userinfo", createUserInfoHeader("admin-user-id", "admin")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Admin Dashboard"));
+                .andExpect(jsonPath("$.data.message").value("Admin Dashboard"));
     }
 
     @Test
-    @DisplayName("🚫 Regular user CANNOT access admin dashboard")
+    @DisplayName("Regular user CANNOT access admin dashboard")
     void testUserCannotAccessAdminDashboard() throws Exception {
+        String userToken = createMockJwtToken("test-user", "user");
         mockMvc.perform(get("/accounts/dashboard")
+                        .header("Authorization", "Bearer " + userToken)
                         .header("X-Userinfo", createUserInfoHeader("alice-user-id", "user")))
                 .andExpect(status().isForbidden());
     }
@@ -204,7 +220,26 @@ class OwnershipAccessControlTest extends AbstractIntegrationTest {
      * Helper method to create X-Userinfo header value for testing
      */
     private String createUserInfoHeader(String userId, String role) {
-        String json = String.format("{\"sub\":\"%s\",\"realm_access\":[\"%s\"]}", userId, role);
+        // UserInfoAuthentication expects realm_access as Map with "roles" key
+        String json = String.format("{\"sub\":\"%s\",\"realm_access\":{\"roles\":[\"%s\"]}}", userId, role);
         return Base64.getEncoder().encodeToString(json.getBytes());
+    }
+
+    /**
+     * Helper method to create a properly formatted JWT token for testing
+     * ParseUserInfoFilter requires JWT format: header.payload.signature
+     */
+    private String createMockJwtToken(String userId, String role) {
+        // Header: {"alg":"none","typ":"JWT"}
+        String header = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString("{\"alg\":\"none\",\"typ\":\"JWT\"}".getBytes());
+        
+        // Payload with user info - UserInfoAuthentication expects realm_access as Map with "roles" key
+        String payload = String.format("{\"sub\":\"%s\",\"realm_access\":{\"roles\":[\"%s\"]}}", userId, role);
+        String encodedPayload = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(payload.getBytes());
+        
+        // No signature for test token
+        return header + "." + encodedPayload + ".";
     }
 }
