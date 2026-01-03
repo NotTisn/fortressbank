@@ -1,6 +1,9 @@
 package com.uit.userservice.service;
 
+import com.uit.userservice.dto.request.AdminCreateUserRequest;
+import com.uit.userservice.dto.request.AdminUpdateUserRequest;
 import com.uit.userservice.dto.request.UpdateUserRequest;
+import com.uit.userservice.dto.response.AdminCreateUserResponse;
 import com.uit.userservice.dto.response.AdminUserResponse;
 import com.uit.userservice.dto.response.UserResponse;
 import org.springframework.data.domain.Page;
@@ -16,4 +19,8 @@ public interface UserService {
     void lockUser(String userId);
     void unlockUser(String userId);
     AdminUserResponse getUserDetailForAdmin(String userId);
+
+    // Admin create and update user
+    AdminCreateUserResponse createUserByAdmin(AdminCreateUserRequest request);
+    AdminUserResponse updateUserByAdmin(String userId, AdminUpdateUserRequest request);
 }

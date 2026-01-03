@@ -3,7 +3,8 @@ package com.uit.notificationservice.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.Date;
+import java.time.LocalDateTime;
+
 
 @Entity
 @Table(name = "notifications")
@@ -34,13 +35,13 @@ public class NotificationMessage {
     private String type;
 
     @Column(name = "is_read", nullable = false)
-    private boolean isRead;
+    private boolean read;
 
     @Column(name = "read_at")
-    private Date readAt;
+    private LocalDateTime readAt;
 
     @Column(name = "sent_at", nullable = false)
-    private Date sentAt;
+    private LocalDateTime sentAt;
 
     @Column(name = "device_token")
     private String deviceToken;
@@ -49,8 +50,8 @@ public class NotificationMessage {
     private String metadata;
 
     @Column(name = "created_at", nullable = false)
-    private Date createdAt;
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
-    private Date updatedAt;
+    private LocalDateTime updatedAt;
 }

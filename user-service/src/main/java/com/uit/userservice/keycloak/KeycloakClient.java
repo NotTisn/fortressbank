@@ -14,6 +14,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -259,6 +260,125 @@ public class KeycloakClient {
         } catch (HttpStatusCodeException ex) {
             log.error("Keycloak get user error: {}", ex.getResponseBodyAsString());
             throw new AppException(ErrorCode.USER_NOT_FOUND);
+        }
+    }
+
+    // 3. Create role if not exists
+    public void createRoleIfNotExists(String roleName) {
+        String adminToken = getAdminAccessToken();
+        String rolesUrl = properties.getAuthServerUrl()
+                + "/admin/realms/" + properties.getRealm()
+                + "/roles";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(adminToken);
+
+        try {
+            // Check if role exists
+            HttpEntity<Void> getEntity = new HttpEntity<>(headers);
+            ResponseEntity<List> rolesResponse = restTemplate.exchange(
+                    rolesUrl,
+                    HttpMethod.GET,
+                    getEntity,
+                    List.class
+            );
+
+            List<Map<String, Object>> allRoles = (List<Map<String, Object>>) rolesResponse.getBody();
+            if (allRoles != null) {
+                boolean roleExists = allRoles.stream()
+                        .anyMatch(role -> roleName.equals(role.get("name")));
+
+                if (roleExists) {
+                    log.info("Role '{}' already exists in Keycloak", roleName);
+                    return;
+                }
+            }
+
+            // Create role if not exists
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            Map<String, Object> roleData = Map.of(
+                    "name", roleName,
+                    "description", "Auto-created role: " + roleName
+            );
+            HttpEntity<Map<String, Object>> createEntity = new HttpEntity<>(roleData, headers);
+
+            restTemplate.postForEntity(rolesUrl, createEntity, Void.class);
+            log.info("Created role '{}' in Keycloak", roleName);
+
+        } catch (HttpStatusCodeException ex) {
+            log.error("Failed to create role '{}': {}", roleName, ex.getResponseBodyAsString());
+        }
+    }
+
+    // 4. Assign realm roles to user
+    public void assignRealmRolesToUser(String userId, List<String> roleNames) {
+        if (roleNames == null || roleNames.isEmpty()) {
+            return;
+        }
+
+        String adminToken = getAdminAccessToken();
+
+        // Step 0: Ensure all roles exist (create if not)
+        for (String roleName : roleNames) {
+            createRoleIfNotExists(roleName);
+        }
+
+        // Step 1: Get available realm roles
+        String availableRolesUrl = properties.getAuthServerUrl()
+                + "/admin/realms/" + properties.getRealm()
+                + "/roles";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setBearerAuth(adminToken);
+        HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+        try {
+            // Get all available roles
+            ResponseEntity<List> rolesResponse = restTemplate.exchange(
+                    availableRolesUrl,
+                    HttpMethod.GET,
+                    entity,
+                    List.class
+            );
+
+            List<Map<String, Object>> allRoles = (List<Map<String, Object>>) rolesResponse.getBody();
+            if (allRoles == null) {
+                log.warn("No roles available in Keycloak realm");
+                return;
+            }
+
+            // Filter roles that match the requested roleNames
+            List<Map<String, Object>> rolesToAssign = allRoles.stream()
+                    .filter(role -> roleNames.contains(role.get("name")))
+                    .map(role -> Map.of(
+                            "id", role.get("id"),
+                            "name", role.get("name")
+                    ))
+                    .toList();
+
+            if (rolesToAssign.isEmpty()) {
+                log.warn("None of the requested roles {} exist in Keycloak", roleNames);
+                return;
+            }
+
+            // Step 2: Assign roles to user
+            String assignRolesUrl = properties.getAuthServerUrl()
+                    + "/admin/realms/" + properties.getRealm()
+                    + "/users/" + userId + "/role-mappings/realm";
+
+            HttpHeaders assignHeaders = new HttpHeaders();
+            assignHeaders.setBearerAuth(adminToken);
+            assignHeaders.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<List<Map<String, Object>>> assignEntity = new HttpEntity<>(rolesToAssign, assignHeaders);
+
+            restTemplate.postForEntity(assignRolesUrl, assignEntity, Void.class);
+            log.info("Assigned roles {} to user {}", roleNames, userId);
+
+        } catch (HttpStatusCodeException ex) {
+            log.error("Keycloak assign roles error: {}", ex.getResponseBodyAsString());
+            // Don't throw exception, just log warning
+            log.warn("Failed to assign roles {} to user {}", roleNames, userId);
         }
     }
 }
