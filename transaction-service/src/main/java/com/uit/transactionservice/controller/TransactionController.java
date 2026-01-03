@@ -10,7 +10,6 @@ import com.uit.transactionservice.entity.TransactionStatus;
 import com.uit.transactionservice.security.RequireRole;
 import com.uit.transactionservice.service.TransactionLimitService;
 import com.uit.transactionservice.service.TransactionService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,9 +19,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -33,40 +33,37 @@ public class TransactionController {
 
     private final TransactionService transactionService;
     private final TransactionLimitService transactionLimitService;
+    private final com.uit.transactionservice.client.UserServiceClient userServiceClient;
 
     /**
      * Create a new transfer transaction (with OTP)
      * POST /transactions/transfers
+     *
+     * @param request The transfer request containing sender, receiver, and amount
+     * @param jwt JWT token containing user identity (automatically injected by Spring Security)
+     * @return TransactionResponse with transaction details and PENDING_OTP status
      */
     @PostMapping("/transfers")
     // @RequireRole("user")
     public ResponseEntity<ApiResponse<TransactionResponse>> createTransfer(
             @Valid @RequestBody CreateTransferRequest request,
-          
-            HttpServletRequest httpRequest) {
+            @AuthenticationPrincipal Jwt jwt) {
 
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> userInfo = (Map<String, Object>) httpRequest.getAttribute("userInfo");
-            String userId = "test-user"; // Default for testing
-            String phoneNumber = "+84384929107"; // Default for testing
-            
-            if (userInfo != null) {
-                userId = (String) userInfo.get("sub");
-                phoneNumber= (String) userInfo.get("phoneNumber");
-                log.info("User ID from token: {}", userId);
-            } else {
-                log.warn("No JWT token found, using default test user");
-            }
-            
-            log.info("Phone number: {}", phoneNumber);
+            // Extract userId from JWT token's "sub" claim (subject - Keycloak user ID)
+            String userId = jwt.getSubject();
+            log.info("Creating transfer for user: {}", userId);
+
+            // Fetch phone number dynamically from user-service
+            String phoneNumber = userServiceClient.getPhoneNumberByUserId(userId);
+            log.info("Phone number retrieved for user {}: {}", userId, maskPhoneNumber(phoneNumber));
 
             TransactionResponse response = transactionService.createTransfer(request, userId, phoneNumber);
-            
+
             log.info("Transfer created successfully: {}", response.getTransactionId());
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success(response));
-                    
+
         } catch (Exception e) {
             log.error("=== CREATE TRANSFER FAILED ===", e);
             log.error("Error type: {}", e.getClass().getName());
@@ -182,5 +179,20 @@ public class TransactionController {
 
         TransactionLimitResponse response = transactionLimitService.getTransactionLimits(accountId);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * Mask phone number for logging (show only last 4 digits)
+     * Example: +84384929107 -> +84******9107
+     */
+    private String maskPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.length() <= 4) {
+            return "****";
+        }
+        int visibleDigits = 4;
+        int maskLength = phoneNumber.length() - visibleDigits - 3; // -3 for country code
+        String countryCode = phoneNumber.substring(0, 3);
+        String lastDigits = phoneNumber.substring(phoneNumber.length() - visibleDigits);
+        return countryCode + "*".repeat(Math.max(0, maskLength)) + lastDigits;
     }
 }
