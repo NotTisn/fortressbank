@@ -17,6 +17,10 @@ spring:
     config:
       enabled: false
 
+# JWT disabled for tests - uses permissive mock decoder (see JwtConfig.java)
+jwt:
+  enabled: false
+
 # Stripe configuration for tests (mocked)
 stripe:
   api-key: sk_test_dummy_key_for_testing

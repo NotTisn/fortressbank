@@ -1,16 +1,22 @@
 package com.uit.accountservice.config;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Profile;
-import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 
 /**
  * JWT Configuration for Account Service.
@@ -18,18 +24,18 @@ import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
  * Provides JwtDecoder bean for validating JWT tokens in both REST and SOAP requests.
  * 
  * Configuration options (in order of precedence):
- * 1. jwt.jwk-set-uri + jwt.expected-issuer: Explicit key location and expected issuer
+ * 1. jwt.enabled=false: Disables JWT validation entirely (for testing without Keycloak)
+ * 2. jwt.jwk-set-uri + jwt.expected-issuer: Explicit key location and expected issuer
  *    - Use when JWKS is fetched from different URL than issuer (e.g., Docker internal)
- * 2. jwt.issuer-uri / spring.security.oauth2.resourceserver.jwt.issuer-uri:
+ * 3. jwt.issuer-uri / spring.security.oauth2.resourceserver.jwt.issuer-uri:
  *    - Uses issuer URI for both JWKS discovery and issuer validation
  * 
- * SECURITY FIX (2024-12/2026-01):
- * - Added support for split jwk-set-uri and expected-issuer configuration
- * - This allows fetching keys from Docker-internal URL while validating tokens 
- *   with external issuer (e.g., localhost:8888)
+ * For tests: Set jwt.enabled=false in application-test.yml to use a permissive mock decoder.
  */
 @Configuration
 public class JwtConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtConfig.class);
 
     @Value("${jwt.issuer-uri:${spring.security.oauth2.resourceserver.jwt.issuer-uri:}}")
     private String issuerUri;
@@ -41,35 +47,24 @@ public class JwtConfig {
     private String expectedIssuer;
 
     /**
-     * JwtDecoder bean for validating JWT tokens.
-     * 
-     * Uses Nimbus JOSE + JWT library (included in spring-security-oauth2-jose).
-     * 
-     * If jwt.jwk-set-uri is configured, uses explicit key fetching with custom issuer validation.
-     * Otherwise, falls back to auto-discovery from issuer-uri.
-     * 
-     * Note: This bean is disabled in 'test' profile - tests use @MockBean or TestSecurityConfig.
-     * 
-     * @return JwtDecoder instance
+     * Production JwtDecoder - connects to real Keycloak/OIDC provider.
+     * Only created when jwt.enabled=true (default).
      */
     @Bean
-    @Profile("!test")
+    @ConditionalOnProperty(name = "jwt.enabled", havingValue = "true", matchIfMissing = true)
     public JwtDecoder jwtDecoder() {
         // Option 1: Explicit JWK Set URI with separate expected issuer
-        // Useful for Docker environments where JWKS is fetched internally
-        // but tokens have external issuer (e.g., localhost:8888)
         if (jwkSetUri != null && !jwkSetUri.isEmpty()) {
+            log.info("Configuring JWT decoder with explicit JWK Set URI: {}", jwkSetUri);
             NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
             
-            // If expected issuer is configured, validate against it
-            // Otherwise, skip issuer validation (signature still verified)
             if (expectedIssuer != null && !expectedIssuer.isEmpty()) {
+                log.info("Validating JWT issuer against: {}", expectedIssuer);
                 decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                     new JwtTimestampValidator(),
                     new JwtIssuerValidator(expectedIssuer)
                 ));
             } else {
-                // Only validate timestamp, signature is always verified
                 decoder.setJwtValidator(new JwtTimestampValidator());
             }
             
@@ -77,21 +72,39 @@ public class JwtConfig {
         }
         
         // Option 2: Auto-discovery from issuer URI
-        // JwtDecoders.fromIssuerLocation() automatically:
-        // - Fetches /.well-known/openid-configuration from issuer
-        // - Extracts jwks_uri from the config
-        // - Configures signature verification with correct algorithms
-        // - Validates issuer claim matches
-        // - Caches public keys
         if (issuerUri != null && !issuerUri.isEmpty()) {
+            log.info("Configuring JWT decoder with issuer discovery: {}", issuerUri);
             return JwtDecoders.fromIssuerLocation(issuerUri);
         }
         
-        // Fail-fast: config is missing - do NOT silently accept unverified tokens
         throw new IllegalStateException(
             "JWT configuration missing. Set either:\n" +
             "  - jwt.jwk-set-uri (with optional jwt.expected-issuer), OR\n" +
-            "  - jwt.issuer-uri / spring.security.oauth2.resourceserver.jwt.issuer-uri"
+            "  - jwt.issuer-uri / spring.security.oauth2.resourceserver.jwt.issuer-uri\n" +
+            "  - OR set jwt.enabled=false for testing without Keycloak"
         );
     }
+
+    /**
+     * Test/Development JwtDecoder - used when jwt.enabled=false.
+     * Returns a permissive decoder that accepts any well-formed token.
+     * 
+     * WARNING: Never use jwt.enabled=false in production!
+     */
+    @Bean
+    @ConditionalOnProperty(name = "jwt.enabled", havingValue = "false")
+    public JwtDecoder testJwtDecoder() {
+        log.warn("⚠️  JWT validation DISABLED - using permissive decoder. DO NOT USE IN PRODUCTION!");
+        return token -> {
+            return Jwt.withTokenValue(token)
+                    .header("alg", "none")
+                    .subject("test-user")
+                    .issuer("test-issuer")
+                    .issuedAt(Instant.now())
+                    .expiresAt(Instant.now().plusSeconds(3600))
+                    .claim("realm_access", Map.of("roles", List.of("user")))
+                    .build();
+        };
+    }
 }
+
