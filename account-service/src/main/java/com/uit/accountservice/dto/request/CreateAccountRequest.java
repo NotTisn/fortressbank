@@ -9,7 +9,7 @@ public record CreateAccountRequest(
         String accountNumberType,
 
         // Optional: Phone number for PHONE_NUMBER type (if not provided, auto-fetched from user-service)
-        @Pattern(regexp = "^[0-9]{10,11}$", message = "PHONE_NUMBER_INVALID_FORMAT")
+        @Pattern(regexp = "^\\+84[0-9]{9,10}$", message = "PHONE_NUMBER_INVALID_FORMAT")
         String phoneNumber,
 
         // Optional: PIN to set for the account (6 digits)

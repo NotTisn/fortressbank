@@ -78,6 +78,33 @@ public class NotificationListener {
     }
 
     /**
+     * Handles Registration OTP events from user-service
+     * Queue: notification.registration-otp.queue
+     * Routing Key: registration.otp
+     * Purpose: Send OTP via SMS for user registration
+     */
+    @RabbitListener(queues = RabbitMQConstants.REGISTRATION_OTP_QUEUE)
+    public void handleRegistrationOtpNotification(Map<String, Object> message) {
+        log.info("Received Registration OTP notification event: {}", message);
+
+        try {
+            String phoneNumber = (String) message.get("phoneNumber");
+            String otpCode = (String) message.get("otpCode");
+
+            log.info("Processing Registration OTP for phone: {}", phoneNumber);
+
+            // Send SMS OTP via TextBee API
+            notificationService.sendSmsOtp(phoneNumber, otpCode);
+
+            log.info("Registration OTP SMS sent successfully to: {}", phoneNumber);
+
+        } catch (Exception e) {
+            log.error("Failed to send Registration OTP notification: {}", e.getMessage(), e);
+            // OTP failures are critical - consider implementing retry logic or alerting
+        }
+    }
+
+    /**
      * Handles transaction completion/failure events from transaction-service
      * Queue: notification-queue
      * Routing Keys: notification.TransactionCompleted, notification.TransactionFailed, notification.ExternalTransferInitiated

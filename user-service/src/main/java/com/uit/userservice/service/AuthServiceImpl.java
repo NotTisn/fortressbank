@@ -68,10 +68,11 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // Store validation data in Redis temporarily (valid for 10 minutes)
-        String validationKey = "registration:validate:" + request.getEmail();
+        // Use phoneNumber as key instead of email for SMS-based OTP
+        String validationKey = "registration:validate:" + request.getPhoneNumber();
         redisTemplate.opsForValue().set(
                 validationKey,
-                request.getCitizenId() + "|" + request.getPhoneNumber(),
+                request.getCitizenId() + "|" + request.getEmail(),
                 10,
                 TimeUnit.MINUTES
         );
@@ -80,19 +81,29 @@ public class AuthServiceImpl implements AuthService {
         String otp = String.format("%06d", (int)(Math.random() * 1000000));
 
         // Store OTP in Redis (valid for 5 minutes)
-        String otpKey = "otp:" + request.getEmail();
+        String otpKey = "registration:otp:" + request.getPhoneNumber();
         redisTemplate.opsForValue().set(otpKey, otp, 5, TimeUnit.MINUTES);
 
-        // Send OTP via email
+        // Send OTP via SMS (RabbitMQ -> notification-service)
         try {
-            emailService.sendOtpEmail(request.getEmail(), otp, 5);
-            log.info("OTP sent successfully to {}", request.getEmail());
+            java.util.Map<String, Object> otpMessage = java.util.Map.of(
+                "phoneNumber", request.getPhoneNumber(),
+                "otpCode", otp
+            );
+
+            rabbitTemplate.convertAndSend(
+                RabbitMQConstants.TRANSACTION_EXCHANGE,
+                RabbitMQConstants.REGISTRATION_OTP_ROUTING_KEY,
+                otpMessage
+            );
+
+            log.info("Registration OTP sent to RabbitMQ for phone: {}", request.getPhoneNumber());
         } catch (Exception e) {
-            log.error("Failed to send OTP email to {}: {}", request.getEmail(), e.getMessage());
-            // Clean up Redis if email fails
+            log.error("Failed to send OTP to RabbitMQ for phone {}: {}", request.getPhoneNumber(), e.getMessage());
+            // Clean up Redis if RabbitMQ fails
             redisTemplate.delete(otpKey);
             redisTemplate.delete(validationKey);
-            throw new AppException(ErrorCode.NOTIFICATION_SERVICE_FAILED, "Failed to send OTP email");
+            throw new AppException(ErrorCode.NOTIFICATION_SERVICE_FAILED, "Failed to send OTP SMS");
         }
 
         return new OtpResponse(true, "OTP_SENT_SUCCESSFULLY");
@@ -100,8 +111,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public ValidationResponse verifyOtp(VerifyOtpRequest request) {
-        // Get OTP from Redis
-        String otpKey = "otp:" + request.getEmail();
+        // Get OTP from Redis (using phoneNumber as key)
+        String otpKey = "registration:otp:" + request.getPhoneNumber();
         String storedOtp;
         try {
             storedOtp = redisTemplate.opsForValue().get(otpKey);
@@ -119,7 +130,7 @@ public class AuthServiceImpl implements AuthService {
 
         // Mark OTP as verified in Redis (delete OTP, set verified flag)
         redisTemplate.delete(otpKey);
-        String verifiedKey = "otp:verified:" + request.getEmail();
+        String verifiedKey = "registration:otp:verified:" + request.getPhoneNumber();
         redisTemplate.opsForValue().set(verifiedKey, "true", 30, TimeUnit.MINUTES);
 
         return new ValidationResponse(true, "OTP_VERIFIED_SUCCESSFULLY");
@@ -171,8 +182,8 @@ public class AuthServiceImpl implements AuthService {
 
     @Transactional
     private User createUserInTransaction(RegisterRequest request) {
-        // Verify OTP was completed for this email
-        String verifiedKey = "otp:verified:" + request.getEmail();
+        // Verify OTP was completed for this phone number
+        String verifiedKey = "registration:otp:verified:" + request.getPhoneNumber();
         String isVerified;
         try {
             isVerified = redisTemplate.opsForValue().get(verifiedKey);
@@ -183,12 +194,12 @@ public class AuthServiceImpl implements AuthService {
         log.debug("Register: verifiedKey='{}' value='{}'", verifiedKey, isVerified);
 
         if (isVerified == null) {
-            log.warn("OTP not verified for email={}", request.getEmail());
+            log.warn("OTP not verified for phone={}", request.getPhoneNumber());
             throw new AppException(ErrorCode.BAD_REQUEST, "OTP_NOT_VERIFIED");
         }
 
-        // Ensure validation data exists and matches provided citizenId/phoneNumber
-        String validationKey = "registration:validate:" + request.getEmail();
+        // Ensure validation data exists and matches provided citizenId/email
+        String validationKey = "registration:validate:" + request.getPhoneNumber();
         String validationData;
         try {
             validationData = redisTemplate.opsForValue().get(validationKey);
@@ -197,15 +208,15 @@ public class AuthServiceImpl implements AuthService {
         }
         log.debug("Register: validationKey='{}' value='{}'", validationKey, validationData);
         if (validationData == null) {
-            log.warn("Validation data not found for email={}", request.getEmail());
+            log.warn("Validation data not found for phone={}", request.getPhoneNumber());
             throw new AppException(ErrorCode.BAD_REQUEST, "VALIDATION_NOT_FOUND");
         }
         String[] parts = validationData.split("\\|");
         String storedCitizenId = parts.length > 0 ? parts[0] : null;
-        String storedPhone = parts.length > 1 ? parts[1] : null;
+        String storedEmail = parts.length > 1 ? parts[1] : null;
 
-        if (!request.getCitizenId().equals(storedCitizenId) || !request.getPhoneNumber().equals(storedPhone)) {
-            log.warn("Validation mismatch for email={}, storedCitizenId={}, storedPhone={}", request.getEmail(), storedCitizenId, storedPhone);
+        if (!request.getCitizenId().equals(storedCitizenId) || !request.getEmail().equals(storedEmail)) {
+            log.warn("Validation mismatch for phone={}, storedCitizenId={}, storedEmail={}", request.getPhoneNumber(), storedCitizenId, storedEmail);
             throw new AppException(ErrorCode.BAD_REQUEST, "VALIDATION_MISMATCH");
         }
 

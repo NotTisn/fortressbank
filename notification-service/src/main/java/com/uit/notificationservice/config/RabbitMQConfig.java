@@ -46,6 +46,12 @@ public class RabbitMQConfig {
         return new Queue(RabbitMQConstants.FORGOT_PASSWORD_OTP_QUEUE, true);
     }
 
+    // Queue for registration OTP notifications
+    @Bean
+    public Queue registrationOtpQueue() {
+        return new Queue(RabbitMQConstants.REGISTRATION_OTP_QUEUE, true);
+    }
+
     // Binding: OTP events -> OTP Queue
     @Bean
     public Binding otpBinding() {
@@ -60,6 +66,14 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(forgotPasswordOtpQueue())
                 .to(transactionExchange())
                 .with(RabbitMQConstants.FORGOT_PASSWORD_OTP_ROUTING_KEY);
+    }
+
+    // Binding: Registration OTP events -> Registration OTP Queue
+    @Bean
+    public Binding registrationOtpBinding() {
+        return BindingBuilder.bind(registrationOtpQueue())
+                .to(transactionExchange())
+                .with(RabbitMQConstants.REGISTRATION_OTP_ROUTING_KEY);
     }
 
     // Binding: Transaction notifications -> Transaction Notification Queue
