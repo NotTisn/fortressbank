@@ -1,6 +1,7 @@
 package com.uit.transactionservice.controller;
 
 import com.uit.sharedkernel.api.ApiResponse;
+import com.uit.sharedkernel.security.JwtUtils;
 import com.uit.transactionservice.dto.VerifyOTPRequest;
 import com.uit.transactionservice.dto.request.CreateTransferRequest;
 import com.uit.transactionservice.dto.request.ResendOtpRequest;
@@ -40,7 +41,7 @@ public class TransactionController {
      * POST /transactions/transfers
      *
      * @param request The transfer request containing sender, receiver, and amount
-     * @param jwt JWT token containing user identity (automatically injected by Spring Security)
+     * @param jwt JWT token containing user identity and phoneNumber (automatically injected by Spring Security)
      * @return TransactionResponse with transaction details and PENDING_OTP status
      */
     @PostMapping("/transfers")
@@ -50,12 +51,30 @@ public class TransactionController {
             @AuthenticationPrincipal Jwt jwt) {
 
         try {
-            // Extract userId from JWT token's "sub" claim (subject - Keycloak user ID)
-            String userId = jwt.getSubject();
+            // Extract userId and phoneNumber from JWT token using utility
+            String userId = JwtUtils.getUserId(jwt);
+            
             log.info("Creating transfer for user: {}", userId);
+            
+            // TROUBLESHOOTING: Log all JWT claims to see what's available
+            var allClaims = JwtUtils.getAllClaims(jwt);
+            log.info("=== JWT CLAIMS TROUBLESHOOTING ===");
+            log.info("Available claims: {}", allClaims.keySet());
+            log.info("phone_number claim (underscore): {}", allClaims.get("phone_number"));
+            log.info("phoneNumber claim (camelCase): {}", allClaims.get("phoneNumber"));
+            log.info("===================================");
+            
+            String phoneNumber = JwtUtils.getPhoneNumber(jwt);
+            log.info("JwtUtils.getPhoneNumber() returned: {}", phoneNumber);
 
-            // Fetch phone number dynamically from user-service
-            String phoneNumber = userServiceClient.getPhoneNumberByUserId(userId);
+            // Fallback: If phoneNumber not in token, fetch from user-service (backward compatibility)
+            if (phoneNumber == null || phoneNumber.isEmpty()) {
+                log.warn("phoneNumber not found in JWT token for user {}. Falling back to user-service API.", userId);
+                phoneNumber = userServiceClient.getPhoneNumberByUserId(userId);
+            } else {
+                log.info("✅ phoneNumber extracted from JWT token: {}", maskPhoneNumber(phoneNumber));
+            }
+            
             log.info("Phone number retrieved for user {}: {}", userId, maskPhoneNumber(phoneNumber));
 
             TransactionResponse response = transactionService.createTransfer(request, userId, phoneNumber);

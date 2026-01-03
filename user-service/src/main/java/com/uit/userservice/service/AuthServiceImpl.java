@@ -228,12 +228,13 @@ public class AuthServiceImpl implements AuthService {
             throw new AppException(ErrorCode.EMAIL_EXISTS);
         }
 
-        // 1. Create user in Keycloak
+        // 1. Create user in Keycloak with phoneNumber
         String keycloakUserId = keycloakClient.createUser(
                 request.getUsername(),
                 request.getEmail(),
                 request.getFullName(),
-                request.getPassword()
+                request.getPassword(),
+                request.getPhoneNumber() // Add phoneNumber to Keycloak attributes
         );
 
         // 2. Create user profile in local DB

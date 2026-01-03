@@ -429,7 +429,21 @@ public class AccountService {
                 }
             }
 
-            accountNumber = phoneNumber;
+            // Convert international format (+84...) to Vietnamese local format (0...)
+            // Example: +84857311444 → 0857311444
+            if (phoneNumber.startsWith("+84")) {
+                accountNumber = "0" + phoneNumber.substring(3);
+            } else if (phoneNumber.startsWith("84")) {
+                accountNumber = "0" + phoneNumber.substring(2);
+            } else if (phoneNumber.startsWith("0")) {
+                accountNumber = phoneNumber; // Already in correct format
+            } else {
+                // Fallback: use as-is but log warning
+                accountNumber = phoneNumber;
+                log.warn("Phone number format unexpected: {}. Using as-is for account number.", phoneNumber);
+            }
+
+            log.info("Phone-based account number: {} (from phone: {})", accountNumber, phoneNumber);
 
             // Check if account with this phone number already exists (globally)
             if (accountRepository.findByAccountNumber(accountNumber).isPresent()) {
