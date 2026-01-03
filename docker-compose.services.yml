@@ -112,17 +112,23 @@ services:
       #   - MAVEN_OPTS=-Xmx512m
     container_name: account-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://account-service-db:5432/accountdb
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 123456
-      SPRING_PROFILES_ACTIVE: docker
-      SERVER_PORT: 4001
-      SPRING_REDIS_HOST: redis
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery:8761/eureka/
-      JWT_ISSUER_URI: http://keycloak:8080/realms/fortressbank-realm
-      SPRING_RABBITMQ_HOST: rabbitmq
-      SPRING_RABBITMQ_PORT: 5672
+      # Database - uses .env variables
+      SPRING_DATASOURCE_URL: jdbc:postgresql://account-service-db:5432/${ACCOUNT_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Spring Config
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SERVER_PORT: ${ACCOUNT_SERVICE_PORT}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
+      # Redis
+      SPRING_REDIS_HOST: ${REDIS_HOST}
+      # JWT
+      JWT_ISSUER_URI: ${JWT_ISSUER_URI}
+      # RabbitMQ
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT}
+      # Stripe
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
     depends_on:
       discovery:
@@ -154,16 +160,15 @@ services:
       #   - MAVEN_OPTS=-Xmx512m
     container_name: notification-service
     environment:
-      SPRING_PROFILES_ACTIVE: docker
-      SERVER_PORT: 4002
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery:8761/eureka/
-
-      # Datasource configuration
-      SPRING_DATASOURCE_URL: jdbc:postgresql://notification-service-db:5432/${NOTIFICATION_DB_NAME}
+      # Spring Config
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SERVER_PORT: ${NOTIFICATION_SERVICE_PORT}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
+      # Datasource
+      SPRING_DATASOURCE_URL: jdbc:postgresql://notification-service-db:5432/${NOTIFICATION_DB_NAME:-notificationdb}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-
       # Email Configuration (SendGrid)
       MAIL_HOST: ${MAIL_HOST}
       MAIL_PORT: ${MAIL_PORT}
@@ -193,19 +198,26 @@ services:
       #   - MAVEN_OPTS=-Xmx512m
     container_name: transaction-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://transaction-service-db:5432/transactiondb
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 123456
-      SPRING_PROFILES_ACTIVE: docker
-      SERVER_PORT: 4004
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery:8761/eureka/
-      ACCOUNT_SERVICE_URL: http://account-service:4001
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      JWT_ISSUER_URI: http://keycloak:8080/realms/fortressbank-realm
-      SPRING_RABBITMQ_HOST: rabbitmq
-      SPRING_RABBITMQ_PORT: 5672
+      # Database - uses .env variables
+      SPRING_DATASOURCE_URL: jdbc:postgresql://transaction-service-db:5432/${TRANSACTION_DB_NAME}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Spring Config
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SERVER_PORT: ${TRANSACTION_SERVICE_PORT}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
+      # Service URLs
+      ACCOUNT_SERVICE_URL: http://account-service:${ACCOUNT_SERVICE_PORT}
+      # Redis
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      # JWT
+      JWT_ISSUER_URI: ${JWT_ISSUER_URI}
+      # RabbitMQ
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT}
+      # Stripe
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
       STRIPE_CONNECT_ACCOUNT_ID: ${STRIPE_CONNECT_ACCOUNT_ID}
@@ -239,15 +251,18 @@ services:
       #   - MAVEN_OPTS=-Xmx512m
     container_name: audit-service
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://audit-service-db:5432/auditdb
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 123456
-      SPRING_PROFILES_ACTIVE: docker
-      SERVER_PORT: 4005
-      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery:8761/eureka/
-      SPRING_RABBITMQ_HOST: rabbitmq
-      SPRING_RABBITMQ_PORT: 5672
+      # Database - uses .env variables
+      SPRING_DATASOURCE_URL: jdbc:postgresql://audit-service-db:5432/${AUDIT_DB_NAME:-auditdb}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Spring Config
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE}
+      SERVER_PORT: ${AUDIT_SERVICE_PORT:-4005}
+      SPRING_CLOUD_CONFIG_URI: ${SPRING_CLOUD_CONFIG_URI}
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE}
+      # RabbitMQ
+      SPRING_RABBITMQ_HOST: ${RABBITMQ_HOST}
+      SPRING_RABBITMQ_PORT: ${RABBITMQ_PORT}
     depends_on:
       discovery:
         condition: service_healthy

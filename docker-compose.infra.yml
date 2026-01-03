@@ -196,12 +196,15 @@ services:
   rabbitmq:
     image: rabbitmq:3.12-management
     container_name: fortress-rabbitmq
+    hostname: fortress-rabbitmq
     ports:
       - "5672:5672" # Application port
       - "15672:15672" # Management UI port
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
+      # Fix for erlang cookie permission issue on Windows Docker Desktop
+      RABBITMQ_ERLANG_COOKIE: "fortressbank-secret-cookie"
     networks:
       - internal
     healthcheck:
