@@ -4,6 +4,7 @@ import com.uit.accountservice.client.UserClient;
 import com.uit.accountservice.dto.AccountDto;
 import com.uit.accountservice.dto.request.CreateAccountRequest;
 import com.uit.accountservice.dto.request.SendSmsOtpRequest;
+import com.uit.accountservice.dto.request.TransferRequest;
 import com.uit.accountservice.dto.response.ChallengeResponse;
 import com.uit.accountservice.dto.response.UserResponse;
 import com.uit.accountservice.entity.Account;

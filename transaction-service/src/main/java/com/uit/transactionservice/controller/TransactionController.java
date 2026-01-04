@@ -218,9 +218,8 @@ public class TransactionController {
         String countryCode = phoneNumber.substring(0, 3);
         String lastDigits = phoneNumber.substring(phoneNumber.length() - visibleDigits);
         return countryCode + "*".repeat(Math.max(0, maskLength)) + lastDigits;
-     * Internal endpoint for User Service to confirm FaceID success.
-     * POST /transactions/internal/face-auth-success
-     */
+    }
+    
     @PostMapping("/internal/face-auth-success")
     public ResponseEntity<ApiResponse<Void>> confirmFaceAuth(
             @RequestBody ConfirmFaceAuthRequest request) {
