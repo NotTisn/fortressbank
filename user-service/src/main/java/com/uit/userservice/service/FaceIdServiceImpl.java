@@ -4,6 +4,8 @@ package com.uit.userservice.service;
 import com.uit.sharedkernel.exception.AppException;
 import com.uit.sharedkernel.exception.ErrorCode;
 import com.uit.userservice.client.FaceIdClient;
+import com.uit.userservice.client.TransactionClient;
+import com.uit.userservice.dto.request.ConfirmFaceAuthRequest;
 import com.uit.userservice.dto.response.FaceRegistrationResult;
 import com.uit.userservice.dto.response.FaceVerificationResult;
 import com.uit.userservice.dto.response.ai.FaceRegisterResponse;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +29,7 @@ public class FaceIdServiceImpl implements FaceIdService {
 
     private final FaceIdClient faceIdClient;
     private final UserRepository userRepository;
+    private final TransactionClient transactionClient;
 
     @Override
     @Transactional
@@ -134,7 +138,7 @@ public class FaceIdServiceImpl implements FaceIdService {
     }
 
     @Override
-    public FaceVerificationResult verifyFace(String userId, List<MultipartFile> files) {
+    public FaceVerificationResult verifyFace(String userId, List<MultipartFile> files, String transactionId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
 
@@ -155,6 +159,25 @@ public class FaceIdServiceImpl implements FaceIdService {
 
                 if (!isMatch) {
                     throw new AppException(ErrorCode.FACE_VERIFICATION_FAILED, "Face verification mismatch");
+                }
+
+                // If match is successful and we have a transactionId, notify transaction-service
+                if (transactionId != null && !transactionId.isEmpty()) {
+                    log.info("Face verified for transaction {}. Notifying transaction-service...", transactionId);
+                    try {
+                        ConfirmFaceAuthRequest confirmRequest = ConfirmFaceAuthRequest.builder()
+                                .transactionId(UUID.fromString(transactionId))
+                                .phoneNumber(user.getPhoneNumber()) // Send user's phone for OTP
+                                .build();
+                        
+                        transactionClient.confirmFaceAuthSuccess(confirmRequest);
+                        log.info("Successfully notified transaction-service for transaction {}", transactionId);
+                    } catch (Exception e) {
+                        log.error("Failed to notify transaction-service for transaction {}: {}", transactionId, e.getMessage());
+                        // We don't necessarily want to fail the whole process if the notification fails, 
+                        // but for high-security transactions, maybe we should.
+                        // For now, let's just log it.
+                    }
                 }
 
                 return new FaceVerificationResult(

@@ -253,29 +253,26 @@ services:
     networks:
       - internal
 
-  # risk-engine:
-  #   build:
-  #     context: .
-  #     dockerfile: risk-engine/Dockerfile
-  #     target: risk-engine
-  #     args:
-  #       - MAVEN_OPTS=-Xmx512m
-  #   container_name: risk-engine
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: docker
-  #     SERVER_PORT: 6000
-  #     SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-  #   depends_on:
-  #     keycloak:
-  #       condition: service_healthy
-  #     config-server:
-  #       condition: service_healthy
-  #     discovery:
-  #       condition: service_healthy
-  #   ports:
-  #     - "6000:6000"
-  #   networks:
-  #     - internal
+  risk-engine:
+    build:
+      context: .
+      # FAST LOCAL BUILD
+      dockerfile: Dockerfile.services.local
+      target: risk-engine
+    container_name: risk-engine
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 6000
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+    depends_on:
+      discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_started
+    ports:
+      - "6000:6000"
+    networks:
+      - internal
 
   # reference-service:
   #   build:
