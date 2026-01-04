@@ -15,6 +15,13 @@ backup:
   backup-directory: ./backups
   schedule-cron: "0 0 2 * * ?" # 2 AM daily
 
+minio:
+  enabled: true
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin123
+  bucket-name: fortressbank-backups
+
 logging:
   level:
     com.uit.backupservice: DEBUG

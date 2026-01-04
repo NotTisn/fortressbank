@@ -62,6 +62,15 @@ backup:
   encryption-enabled: false
   schedule-cron: ${BACKUP_SCHEDULE:0 0 2 * * *}
 
+# MinIO Cloud Storage Configuration
+minio:
+  enabled: ${MINIO_ENABLED:true}
+  endpoint: ${MINIO_ENDPOINT:http://fortressbank-minio:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin123}
+  bucket-name: ${MINIO_BUCKET_NAME:fortressbank-backups}
+  auto-create-bucket: true
+
 # Logging Configuration
 logging:
   level:

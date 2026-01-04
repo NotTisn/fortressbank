@@ -31,6 +31,8 @@ public class BackupResponse {
     private String checksum;
     private String errorMessage;
     private String initiatedBy;
+    private String cloudStorageUrl;
+    private Boolean uploadedToCloud;
     private List<ServiceBackupDTO> serviceBackups;
     private Long durationMs;
     private LocalDateTime createdAt;

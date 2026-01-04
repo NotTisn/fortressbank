@@ -115,6 +115,13 @@
             <version>1.26.0</version>
         </dependency>
 
+        <!-- MinIO SDK for cloud storage -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.7</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

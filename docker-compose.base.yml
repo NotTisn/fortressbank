@@ -13,3 +13,4 @@ volumes:
   auditdb_data:
   notificationdb_data:
   backupdb_data:
+  minio_data:

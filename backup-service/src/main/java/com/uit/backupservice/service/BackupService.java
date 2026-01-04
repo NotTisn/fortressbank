@@ -35,6 +35,7 @@ public class BackupService {
     private final DatabaseConfig databaseConfig;
     private final StorageService storageService;
     private final MapperService mapperService;
+    private final MinIOStorageService minIOStorageService;
 
     private static final DateTimeFormatter TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
@@ -84,6 +85,24 @@ public class BackupService {
             metadata.setStatus(BackupStatus.COMPLETED);
 
             log.info("Backup completed successfully: id={}, size={} bytes", metadata.getBackupId(), totalSize);
+
+            // Upload to cloud storage (MinIO) if available
+            try {
+                if (minIOStorageService.isAvailable()) {
+                    log.info("Uploading backup to cloud storage: {}", metadata.getBackupId());
+                    String cloudUrl = minIOStorageService.uploadBackupDirectory(backupDirPath, metadata.getBackupId().toString());
+                    metadata.setCloudStorageUrl(cloudUrl);
+                    metadata.setUploadedToCloud(true);
+                    log.info("Successfully uploaded backup to cloud: {}", cloudUrl);
+                } else {
+                    log.warn("Cloud storage not available. Backup stored locally only.");
+                }
+            } catch (Exception cloudException) {
+                log.error("Failed to upload backup to cloud storage: {}. Backup is still available locally at: {}",
+                    cloudException.getMessage(), backupDirPath);
+                // Don't fail the entire backup if cloud upload fails
+                metadata.setUploadedToCloud(false);
+            }
 
         } catch (Exception e) {
             log.error("Backup failed: {}", e.getMessage(), e);

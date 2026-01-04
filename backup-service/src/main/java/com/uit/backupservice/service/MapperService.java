@@ -40,6 +40,8 @@ public class MapperService {
                 .checksum(metadata.getChecksum())
                 .errorMessage(metadata.getErrorMessage())
                 .initiatedBy(metadata.getInitiatedBy())
+                .cloudStorageUrl(metadata.getCloudStorageUrl())
+                .uploadedToCloud(metadata.getUploadedToCloud())
                 .serviceBackups(toServiceBackupDTOs(metadata.getServiceBackups()))
                 .durationMs(durationMs)
                 .createdAt(metadata.getCreatedAt())

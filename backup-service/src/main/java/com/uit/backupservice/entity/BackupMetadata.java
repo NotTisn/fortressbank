@@ -64,6 +64,13 @@ public class BackupMetadata {
     @Column(name = "initiated_by")
     private String initiatedBy;
 
+    @Column(name = "cloud_storage_url", length = 1000)
+    private String cloudStorageUrl;
+
+    @Column(name = "uploaded_to_cloud", nullable = false)
+    @Builder.Default
+    private Boolean uploadedToCloud = false;
+
     @OneToMany(mappedBy = "backupMetadata", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default
     private List<ServiceBackupInfo> serviceBackups = new ArrayList<>();
