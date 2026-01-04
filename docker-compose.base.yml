@@ -12,3 +12,4 @@ volumes:
   keycloak_db_data:
   auditdb_data:
   notificationdb_data:
+  backupdb_data:
