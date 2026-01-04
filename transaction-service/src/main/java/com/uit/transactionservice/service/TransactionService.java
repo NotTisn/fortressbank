@@ -276,6 +276,7 @@ public class TransactionService {
         log.info("Creating transfer from {} to {} with OTP", request.getSenderAccountNumber(), request.getReceiverAccountNumber());
 
         String senderUserId = null;
+        String senderAccountId = null;
 
         // 1. Validate Sender Account Exists (Always)
         try {
@@ -284,11 +285,16 @@ public class TransactionService {
                  throw new AppException(ErrorCode.ACCOUNT_NOT_FOUND, "Sender account not found: " + request.getSenderAccountNumber());
             }
 
+            Object senderAccountIdObj = senderInfo.get("accountId");
+            if (senderAccountIdObj != null) {
+                senderAccountId = senderAccountIdObj.toString();
+            }
+
             Object senderUserIdObj = senderInfo.get("userId");
             if (senderUserIdObj != null) {
                 senderUserId = senderUserIdObj.toString();
-                log.info("Sender account validated - AccountNumber: {}, UserId: {}",
-                    request.getSenderAccountNumber(), senderUserId);
+                log.info("Sender account validated - AccountNumber: {}, AccountId: {}, UserId: {}",
+                    request.getSenderAccountNumber(), senderAccountId, senderUserId);
             } else {
                 log.warn("Sender account has no userId: {}", request.getSenderAccountNumber());
             }
@@ -341,7 +347,7 @@ public class TransactionService {
         }
 
         // 3. Check transaction limit using Sender Account ID
-        checkTransactionLimit(request.getSenderAccountId(), request.getAmount());
+        checkTransactionLimit(senderAccountId, request.getAmount());
 
         // 4. Perform Risk Assessment
         log.info("Performing risk assessment for User: {} - Amount: {}", userId, request.getAmount());
@@ -374,7 +380,7 @@ public class TransactionService {
         TransactionStatus initialStatus = requireFaceAuth ? TransactionStatus.PENDING_FACE_AUTH : TransactionStatus.PENDING_OTP;
         
         Transaction transaction = Transaction.builder()
-                .senderAccountId(request.getSenderAccountId())
+                .senderAccountId(senderAccountId)
                 .senderAccountNumber(request.getSenderAccountNumber())
                 .senderUserId(senderUserId)
                 .receiverAccountNumber(request.getReceiverAccountNumber())

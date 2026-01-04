@@ -647,6 +647,32 @@ public class AccountService {
         return account;
     }
 
+    /**
+     * Initiate transfer with ownership validation.
+     * Validates that the user owns the sender account before allowing transfer.
+     */
+    public void initiateTransferWithOwnershipCheck(String userId, TransferRequest request) {
+        // Validate sender account ownership
+        Account senderAccount = getAccountOwnedByUser(request.getSenderAccountId(), userId);
+        
+        // Validate receiver account exists
+        Account receiverAccount = accountRepository.findById(request.getReceiverAccountId())
+                .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_FOUND, "Receiver account not found"));
+        
+        // Validate transfer amount
+        if (request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Transfer amount must be positive");
+        }
+        
+        // Validate sufficient balance
+        if (senderAccount.getBalance().compareTo(request.getAmount()) < 0) {
+            throw new AppException(ErrorCode.BAD_REQUEST, "Insufficient balance");
+        }
+        
+        log.info("Transfer ownership validated: user {} can transfer from account {} to {}",
+                userId, request.getSenderAccountId(), request.getReceiverAccountId());
+    }
+
     private String generateUniqueAccountNumber() {
         SecureRandom random = new SecureRandom();
         StringBuilder sb = new StringBuilder();
