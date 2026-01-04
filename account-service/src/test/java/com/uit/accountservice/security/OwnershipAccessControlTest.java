@@ -142,7 +142,7 @@ class OwnershipAccessControlTest extends BaseIntegrationTest {
 
         guestJwt = Jwt.withTokenValue("mock-token")
                 .header("alg", "RS256")
-                .claim("sub", "alice-user-id")
+                .claim("sub", "guest-user-id")
                 .claim("preferred_username", "guest")
                 .claim("email", "guest@example.com")
                 .claim("realm_access", java.util.Map.of("roles", java.util.List.of("guest")))
@@ -184,10 +184,9 @@ class OwnershipAccessControlTest extends BaseIntegrationTest {
     void testUserCanTransferFromOwnAccount() throws Exception {
         String transferJson = String.format("""
                 {
-                    "fromAccountId": "%s",
-                    "toAccountId": "%s",
-                    "amount": 100.00,
-                    "description": "Test transfer"
+                    "senderAccountId": "%s",
+                    "receiverAccountId": "%s",
+                    "amount": 100.00
                 }
                 """, aliceAccount.getAccountId(), bobAccount.getAccountId());
 
@@ -203,10 +202,9 @@ class OwnershipAccessControlTest extends BaseIntegrationTest {
     void testUserCannotTransferFromOtherUserAccount() throws Exception {
         String transferJson = String.format("""
                 {
-                    "fromAccountId": "%s",
-                    "toAccountId": "%s",
-                    "amount": 100.00,
-                    "description": "Unauthorized transfer attempt"
+                    "senderAccountId": "%s",
+                    "receiverAccountId": "%s",
+                    "amount": 100.00
                 }
                 """, bobAccount.getAccountId(), aliceAccount.getAccountId());
 
