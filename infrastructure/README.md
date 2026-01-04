@@ -107,6 +107,44 @@ infrastructure/
 - **Eureka Dashboard**: http://localhost:8761
 - **RabbitMQ Management**: http://localhost:15672 (guest/guest)
 
+## Deployment Scenarios
+
+FortressBank supports multiple deployment scenarios. All `application.yml` files use `${ENV_VAR:localhost-default}` pattern for maximum flexibility.
+
+| Scenario | Infrastructure | Services | Commands |
+|----------|----------------|----------|----------|
+| **Full Docker** | Docker | Docker | `docker compose up -d` |
+| **Hybrid (Recommended)** | Docker | Maven/IDE | `dev.bat -infra` then `dev.bat` |
+| **Raw Maven** | Docker | `mvn spring-boot:run` | Start infra, then run each service |
+| **IDE Run** | Docker | IDE Run Config | Same as Raw Maven, use IDE debugger |
+
+### Full Docker Mode
+All services run in containers. Uses `docker-compose.yml` and `.env` file.
+```powershell
+cd fortressbank
+docker compose up -d
+```
+
+### Hybrid Mode (Recommended for Development)
+Infrastructure in Docker, services run locally via Maven for faster reload and debugging.
+```powershell
+cd infrastructure
+.\dev.bat -infra     # Start databases, Keycloak, Redis, RabbitMQ, Kong
+.\dev.bat            # Start all Java services
+```
+
+### Raw Maven Mode
+For debugging a single service without the full dev.bat machinery.
+```powershell
+cd infrastructure
+.\dev.bat -infra     # Start infrastructure
+cd ../account-service
+.\mvnw spring-boot:run
+```
+
+### IDE Run Mode
+Same as Raw Maven but use your IDE's run configuration. Services use localhost defaults from `application.yml`.
+
 ## Troubleshooting
 
 ### Service won't start

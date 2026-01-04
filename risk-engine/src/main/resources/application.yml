@@ -6,7 +6,7 @@ spring:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8889}
 
 server:
-  port: 6000
+  port: ${SERVER_PORT:6000}
 
 eureka:
   client:

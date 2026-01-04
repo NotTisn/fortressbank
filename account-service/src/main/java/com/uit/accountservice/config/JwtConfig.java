@@ -13,7 +13,9 @@ import org.springframework.security.oauth2.jwt.JwtDecoders;
 import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
 import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.web.client.ResourceAccessException;
 
+import java.net.ConnectException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +55,39 @@ public class JwtConfig {
     @Bean
     @ConditionalOnProperty(name = "jwt.enabled", havingValue = "true", matchIfMissing = true)
     public JwtDecoder jwtDecoder() {
+        try {
+            return createJwtDecoder();
+        } catch (Exception e) {
+            // Check if this is a connection failure (infrastructure not running)
+            if (isConnectionFailure(e)) {
+                String infraUrl = jwkSetUri != null && !jwkSetUri.isEmpty() ? jwkSetUri : issuerUri;
+                throw new IllegalStateException(
+                    "\n\n" +
+                    "╔══════════════════════════════════════════════════════════════════════╗\n" +
+                    "║  ❌ KEYCLOAK NOT REACHABLE                                            ║\n" +
+                    "╠══════════════════════════════════════════════════════════════════════╣\n" +
+                    "║  Cannot connect to: " + padRight(infraUrl, 47) + "║\n" +
+                    "║                                                                      ║\n" +
+                    "║  FIX OPTIONS:                                                        ║\n" +
+                    "║  1. Start infrastructure first:                                      ║\n" +
+                    "║     cd fortressbank/infrastructure                                   ║\n" +
+                    "║     ./dev.bat -infra                                                 ║\n" +
+                    "║                                                                      ║\n" +
+                    "║  2. Or use full Docker mode:                                         ║\n" +
+                    "║     cd fortressbank                                                  ║\n" +
+                    "║     docker compose up -d                                             ║\n" +
+                    "║                                                                      ║\n" +
+                    "║  3. Or disable JWT for testing (NOT for production!):               ║\n" +
+                    "║     Set environment variable: JWT_ENABLED=false                      ║\n" +
+                    "╚══════════════════════════════════════════════════════════════════════╝\n",
+                    e
+                );
+            }
+            throw e;
+        }
+    }
+    
+    private JwtDecoder createJwtDecoder() {
         // Option 1: Explicit JWK Set URI with separate expected issuer
         if (jwkSetUri != null && !jwkSetUri.isEmpty()) {
             log.info("Configuring JWT decoder with explicit JWK Set URI: {}", jwkSetUri);
@@ -105,6 +140,31 @@ public class JwtConfig {
                     .claim("realm_access", Map.of("roles", List.of("user")))
                     .build();
         };
+    }
+    
+    /**
+     * Check if the exception is caused by infrastructure not being reachable.
+     */
+    private boolean isConnectionFailure(Exception e) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause instanceof ConnectException || 
+                cause instanceof ResourceAccessException ||
+                (cause.getMessage() != null && cause.getMessage().contains("Connection refused"))) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
+    
+    /**
+     * Pad string to fixed width for error message box alignment.
+     */
+    private static String padRight(String s, int width) {
+        if (s == null) s = "";
+        if (s.length() >= width) return s.substring(0, width);
+        return s + " ".repeat(width - s.length());
     }
 }
 

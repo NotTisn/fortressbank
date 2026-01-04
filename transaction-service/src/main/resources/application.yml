@@ -1,9 +1,21 @@
+server:
+  port: ${SERVER_PORT:4004}
+
 spring:
   application:
     name: transaction-service
   cloud:
     config:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8889}
+      enabled: ${SPRING_CLOUD_CONFIG_ENABLED:false}
+
+  # Database Configuration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5435/transactiondb}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: validate # Flyway manages schema, Hibernate only validates

@@ -1,12 +1,19 @@
+server:
+  port: ${SERVER_PORT:4003}
+
 spring:
   application:
     name: reference-service
   cloud:
     config:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8889}
-  jpa:
-    hibernate:
-      ddl-auto: update
+      enabled: ${SPRING_CLOUD_CONFIG_ENABLED:false}
+  
+  # Reference service is stateless in local dev - no database needed
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
 
 eureka:
   client:
