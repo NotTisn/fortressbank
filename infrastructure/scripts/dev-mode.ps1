@@ -2,16 +2,25 @@
 # FortressBank Dev Mode - All-in-One Service Launcher
 # ============================================================================
 # 
-# Usage:
-#   .\dev-mode.ps1              Start all services (logs auto-cleared)
+# BACKEND:
+#   .\dev-mode.ps1              Start all backend services (logs auto-cleared)
 #   .\dev-mode.ps1 -Watch       Start all + error watcher
-#   .\dev-mode.ps1 -Status      Show service status only
+#   .\dev-mode.ps1 -Status      Show service status (backend + frontend)
 #   .\dev-mode.ps1 -Logs        Open logs folder
 #   .\dev-mode.ps1 -ClearLogs   Clear logs only (no restart)
 #   .\dev-mode.ps1 -Kill        Kill all Java processes
 #   .\dev-mode.ps1 -Clean       Clean all Maven target directories
 #   .\dev-mode.ps1 -Infra       Start infrastructure only (Docker)
 #   .\dev-mode.ps1 -InfraDown   Stop infrastructure (Docker)
+#
+# FRONTEND:
+#   .\dev-mode.ps1 -Fe          Start frontend only (Expo dev server)
+#   .\dev-mode.ps1 -FeInstall   Install frontend dependencies (npm install)
+#   .\dev-mode.ps1 -FeKill      Kill frontend processes (node/expo)
+#
+# FULL STACK:
+#   .\dev-mode.ps1 -Full        Start everything: infra + backend + frontend
+#   .\dev-mode.ps1 -FullKill    Kill everything: Java + Node processes
 #
 # NOTE: Logs are ALWAYS cleared on startup. Fresh run = fresh logs.
 #       Old logs are noise. Current problems are what matter.
@@ -30,7 +39,14 @@ param(
     [switch]$Kill,
     [switch]$Infra,
     [switch]$InfraDown,
-    [switch]$Clean
+    [switch]$Clean,
+    # Frontend commands
+    [switch]$Fe,
+    [switch]$FeInstall,
+    [switch]$FeKill,
+    # Full stack commands
+    [switch]$Full,
+    [switch]$FullKill
 )
 
 # ============================================================================
@@ -44,6 +60,10 @@ $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
 $INFRA_DIR = Split-Path -Parent $SCRIPT_DIR
 $ROOT_DIR = Split-Path -Parent $INFRA_DIR
 $LOG_DIR = Join-Path $INFRA_DIR "logs"
+
+# Frontend directory (sibling to fortressbank_be)
+$WORKSPACE_DIR = Split-Path -Parent $ROOT_DIR
+$FE_DIR = Join-Path $WORKSPACE_DIR "fortressbank_fe"
 
 # PROJECT NAME — Used in banner and window titles
 $PROJECT_NAME = "FortressBank"
@@ -153,6 +173,34 @@ function Show-ServiceStatus {
         $portStatus = if ($up) { "OK" } else { "ERR" }
         Write-Status "$($svc.Name.PadRight(20)) :$($svc.Port)" $portStatus
     }
+    
+    Write-Host ""
+    Write-Host "  Frontend Status:" -ForegroundColor White
+    Write-Host "  ----------------------------------------------------------------" -ForegroundColor DarkGray
+    
+    # Check if frontend directory exists
+    if (Test-Path $FE_DIR) {
+        Write-Status "Frontend directory    $FE_DIR" "OK"
+        
+        # Check if node_modules exists
+        $nodeModules = Join-Path $FE_DIR "node_modules"
+        if (Test-Path $nodeModules) {
+            Write-Status "Dependencies          Installed" "OK"
+        } else {
+            Write-Status "Dependencies          Not installed (run -FeInstall)" "ERR"
+        }
+        
+        # Check if Expo is running (port 8081 is Metro bundler default)
+        $expoUp = Test-Port 8081
+        if ($expoUp) {
+            Write-Status "Expo Metro Bundler    :8081" "OK"
+        } else {
+            Write-Status "Expo Metro Bundler    Not running" "ERR"
+        }
+    } else {
+        Write-Status "Frontend directory not found at $FE_DIR" "ERR"
+    }
+    
     Write-Host ""
 }
 
@@ -592,6 +640,118 @@ if ($Clean) {
     exit 0
 }
 
+# ============================================================================
+# Frontend Commands
+# ============================================================================
+
+if ($FeInstall) {
+    Show-Banner
+    Write-Host "  Installing Frontend Dependencies" -ForegroundColor White
+    Write-Host "  ----------------------------------------------------------------" -ForegroundColor DarkGray
+    
+    if (-not (Test-Path $FE_DIR)) {
+        Write-Status "Frontend directory not found at $FE_DIR" "ERR"
+        exit 1
+    }
+    
+    Push-Location $FE_DIR
+    # Use SilentlyContinue to avoid npm warnings being treated as errors
+    $oldEAP = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    
+    Write-Status "Running npm install in $FE_DIR..." "WAIT"
+    & npm install 2>&1 | Out-Null
+    $exitCode = $LASTEXITCODE
+    
+    $ErrorActionPreference = $oldEAP
+    
+    # Check if node_modules was created
+    $nodeModules = Join-Path $FE_DIR "node_modules"
+    if ((Test-Path $nodeModules) -or $exitCode -eq 0) {
+        Write-Status "npm install completed successfully" "OK"
+    } else {
+        Write-Status "npm install failed (exit code: $exitCode)" "ERR"
+    }
+    
+    Pop-Location
+    exit 0
+}
+
+if ($FeKill) {
+    Show-Banner
+    Write-Status "Stopping all Node/Expo processes..." "WAIT"
+    Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Write-Status "All Node processes stopped" "OK"
+    exit 0
+}
+
+if ($Fe) {
+    Show-Banner
+    Write-Host "  Starting Frontend (Expo Dev Server)" -ForegroundColor White
+    Write-Host "  ----------------------------------------------------------------" -ForegroundColor DarkGray
+    
+    if (-not (Test-Path $FE_DIR)) {
+        Write-Status "Frontend directory not found at $FE_DIR" "ERR"
+        exit 1
+    }
+    
+    $nodeModules = Join-Path $FE_DIR "node_modules"
+    if (-not (Test-Path $nodeModules)) {
+        Write-Status "Dependencies not installed. Running npm install first..." "WAIT"
+        Push-Location $FE_DIR
+        & npm install
+        Pop-Location
+    }
+    
+    # Start Expo in a new terminal window
+    $expoScript = @"
+`$host.UI.RawUI.WindowTitle = '[FortressBank] Frontend - Expo'
+Set-Location '$FE_DIR'
+Write-Host ""
+Write-Host "  FortressBank Mobile App" -ForegroundColor Cyan
+Write-Host "  ----------------------------------------------------------------" -ForegroundColor DarkGray
+Write-Host "  Press 'a' for Android emulator" -ForegroundColor Gray
+Write-Host "  Press 'i' for iOS simulator" -ForegroundColor Gray  
+Write-Host "  Press 'w' for web browser" -ForegroundColor Gray
+Write-Host "  Press 'r' to reload" -ForegroundColor Gray
+Write-Host "  ----------------------------------------------------------------" -ForegroundColor DarkGray
+Write-Host ""
+npm start
+"@
+    
+    $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($expoScript))
+    Start-Process powershell -ArgumentList "-NoExit", "-EncodedCommand", $encodedCommand
+    
+    Write-Status "Expo dev server starting in new window" "OK"
+    Write-Host ""
+    Write-Host "  Frontend URLs:" -ForegroundColor White
+    Write-Host "    Metro Bundler         http://localhost:8081" -ForegroundColor Gray
+    Write-Host "    Expo DevTools         http://localhost:19002" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Make sure your API_CONFIG.BASE_URL points to Kong Gateway:" -ForegroundColor Yellow
+    Write-Host "    Android Emulator:     http://10.0.2.2:8000" -ForegroundColor Gray
+    Write-Host "    iOS Simulator:        http://localhost:8000" -ForegroundColor Gray
+    Write-Host "    Physical Device:      http://<your-ip>:8000" -ForegroundColor Gray
+    Write-Host ""
+    exit 0
+}
+
+if ($FullKill) {
+    Show-Banner
+    Write-Status "Stopping ALL processes (Java + Node)..." "WAIT"
+    Get-Process java -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+    Write-Status "All Java and Node processes stopped" "OK"
+    exit 0
+}
+
+if ($Full) {
+    # Full stack startup - handled in main flow below
+    # This flag just enables frontend startup after backend
+}
+
 # ALWAYS clear old logs on startup - fresh run = fresh logs
 # (user can still use -ClearLogs to clear without starting, or -Logs to view)
 Clear-Logs
@@ -712,16 +872,65 @@ if ($Watch) {
     Write-Status "Skipped. Use -Watch flag to enable." "INFO"
 }
 
+# Step 6: Frontend (if -Full flag)
+if ($Full) {
+    Write-Host ""
+    Write-Host "  [6/6] Frontend (Expo)" -ForegroundColor White
+    Write-Host "  ----------------------------------------------------------------" -ForegroundColor DarkGray
+    
+    if (Test-Path $FE_DIR) {
+        $nodeModules = Join-Path $FE_DIR "node_modules"
+        if (-not (Test-Path $nodeModules)) {
+            Write-Status "Installing frontend dependencies..." "WAIT"
+            Push-Location $FE_DIR
+            & npm install 2>&1 | Out-Null
+            Pop-Location
+            Write-Status "Dependencies installed" "OK"
+        }
+        
+        # Start Expo in a new terminal window
+        $expoScript = @"
+`$host.UI.RawUI.WindowTitle = '[FortressBank] Frontend - Expo'
+Set-Location '$FE_DIR'
+Write-Host ""
+Write-Host "  FortressBank Mobile App" -ForegroundColor Cyan
+Write-Host "  ----------------------------------------------------------------" -ForegroundColor DarkGray
+Write-Host "  Press 'a' for Android emulator" -ForegroundColor Gray
+Write-Host "  Press 'i' for iOS simulator" -ForegroundColor Gray  
+Write-Host "  Press 'w' for web browser" -ForegroundColor Gray
+Write-Host "  Press 'r' to reload" -ForegroundColor Gray
+Write-Host "  ----------------------------------------------------------------" -ForegroundColor DarkGray
+Write-Host ""
+npm start
+"@
+        
+        $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($expoScript))
+        Start-Process powershell -ArgumentList "-NoExit", "-EncodedCommand", $encodedCommand
+        
+        Write-Status "Expo dev server starting in new window" "OK"
+    } else {
+        Write-Status "Frontend directory not found at $FE_DIR - skipping" "ERR"
+    }
+}
+
 # Final summary
 Write-Host ""
 Write-Host "  ================================================================" -ForegroundColor Green
 Write-Host "       FortressBank Dev Mode Active!                              " -ForegroundColor Green
 Write-Host "  ================================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Services (starting up - give them 30-60s):" -ForegroundColor White
+Write-Host "  Backend Services (starting up - give them 30-60s):" -ForegroundColor White
 foreach ($svc in $SERVICES) {
     Write-Host "    $($svc.Name.PadRight(22)) http://localhost:$($svc.Port)" -ForegroundColor Gray
 }
+
+if ($Full) {
+    Write-Host ""
+    Write-Host "  Frontend:" -ForegroundColor White
+    Write-Host "    Expo Metro Bundler    http://localhost:8081" -ForegroundColor Gray
+    Write-Host "    Expo DevTools         http://localhost:19002" -ForegroundColor Gray
+}
+
 Write-Host ""
 Write-Host "  Key URLs:" -ForegroundColor White
 Write-Host "    Kong Gateway          http://localhost:8000" -ForegroundColor Gray
@@ -732,10 +941,11 @@ Write-Host ""
 Write-Host "  Logs folder:            $LOG_DIR" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  Commands:" -ForegroundColor White
-Write-Host "    .\dev.bat -status     Check all services" -ForegroundColor DarkGray
+Write-Host "    .\dev.bat -status     Check all services (BE + FE)" -ForegroundColor DarkGray
 Write-Host "    .\dev.bat -logs       Open logs folder" -ForegroundColor DarkGray
 Write-Host "    .\dev.bat -kill       Stop all Java services" -ForegroundColor DarkGray
 Write-Host "    .\dev.bat -clean      Clean all target dirs (after branch switch!)" -ForegroundColor DarkGray
-Write-Host "    .\dev.bat -infra      Start infrastructure only" -ForegroundColor DarkGray
-Write-Host "    .\dev.bat -infradown  Stop infrastructure" -ForegroundColor DarkGray
+Write-Host "    .\dev.bat -fe         Start frontend only" -ForegroundColor DarkGray
+Write-Host "    .\dev.bat -full       Start backend + frontend" -ForegroundColor DarkGray
+Write-Host "    .\dev.bat -fullkill   Stop everything (Java + Node)" -ForegroundColor DarkGray
 Write-Host ""

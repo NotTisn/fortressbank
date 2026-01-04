@@ -13,17 +13,34 @@ That's it. All databases, Keycloak, Redis, RabbitMQ, Kong, and all Java services
 
 ## Commands
 
+### Backend Commands
+
 | Command | What It Does |
 |---------|--------------|
-| `dev.bat` | Start everything (infra + services) |
-| `dev.bat -watch` | Start everything + centralized error watcher |
-| `dev.bat -status` | Show status of all services |
+| `dev.bat` | Start backend services (infra + Java services) |
+| `dev.bat -watch` | Start backend + centralized error watcher |
+| `dev.bat -status` | Show status of all services (BE + FE) |
 | `dev.bat -logs` | Open logs folder |
 | `dev.bat -clearlogs` | Clear logs only (no restart) |
 | `dev.bat -kill` | Kill all Java processes |
 | `dev.bat -clean` | **Clean all Maven target directories (use after switching branches!)** |
 | `dev.bat -infra` | Start infrastructure only (Docker) |
 | `dev.bat -infradown` | Stop infrastructure (Docker) |
+
+### Frontend Commands
+
+| Command | What It Does |
+|---------|--------------|
+| `dev.bat -fe` | Start frontend only (Expo dev server) |
+| `dev.bat -feinstall` | Install frontend dependencies (npm install) |
+| `dev.bat -fekill` | Kill frontend processes (Node/Expo) |
+
+### Full Stack Commands
+
+| Command | What It Does |
+|---------|--------------|
+| `dev.bat -full` | Start **everything**: infra + backend + frontend |
+| `dev.bat -fullkill` | Kill **everything**: Java + Node processes |
 
 ## ⚠️ Branch Switching (IMPORTANT!)
 
@@ -99,6 +116,39 @@ infrastructure/
 | transaction-service | 4004 |
 | audit-service | 4005 |
 | risk-engine | 4006 |
+
+## Frontend (Mobile App)
+
+The frontend is a React Native + Expo mobile app located at `../fortressbank_fe`.
+
+### Quick Start
+
+```powershell
+cd infrastructure
+.\dev.bat -fe        # Start Expo dev server in new window
+```
+
+Or start the full stack:
+```powershell
+.\dev.bat -full      # Infra + Backend + Frontend all at once
+```
+
+### Frontend Network Configuration
+
+The mobile app connects to Kong Gateway. You must configure `API_CONFIG.BASE_URL` in `fortressbank_fe/src/constants/index.ts` based on your test device:
+
+| Device Type | BASE_URL |
+|-------------|----------|
+| Android Emulator | `http://10.0.2.2:8000` |
+| iOS Simulator | `http://localhost:8000` |
+| Physical Device | `http://<your-machine-ip>:8000` |
+
+### Frontend Ports
+
+| Service | Port |
+|---------|------|
+| Metro Bundler | 8081 |
+| Expo DevTools | 19002 |
 
 ## Key URLs
 
