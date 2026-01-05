@@ -53,11 +53,48 @@ public class KeycloakClient {
     // =============== TOKEN FLOWS ===============
 
     public TokenResponse loginWithPassword(String username, String password) {
-        return callTokenEndpoint(Map.of(
-                "grant_type", "password",
-                "username", username,
-                "password", password
-        ));
+        return loginWithPassword(username, password, null);
+    }
+
+    public TokenResponse loginWithPassword(String username, String password, String deviceId) {
+        String url = tokenEndpoint();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        
+        // Pass deviceId to Keycloak via X-Device-Id header
+        // Keycloak's SingleDeviceAuthenticator checks both form parameter and header
+        if (deviceId != null && !deviceId.isBlank()) {
+            headers.add("X-Device-Id", deviceId);
+        }
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "password");
+        form.add("username", username);
+        form.add("password", password);
+        form.add("client_id", properties.getClientId());
+        form.add("client_secret", properties.getClientSecret());
+        form.add("scope", "openid");
+        
+        // Also add deviceId as form parameter (Keycloak checks both)
+        if (deviceId != null && !deviceId.isBlank()) {
+            form.add("deviceId", deviceId);
+        }
+
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(form, headers);
+
+        try {
+            ResponseEntity<TokenResponse> response =
+                    restTemplate.postForEntity(url, entity, TokenResponse.class);
+
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                throw new AppException(ErrorCode.USER_CREATION_FAILED, "Keycloak token request failed");
+            }
+            return response.getBody();
+        } catch (HttpStatusCodeException ex) {
+            log.error("Keycloak token error: {}", ex.getResponseBodyAsString());
+            throw new AppException(ErrorCode.FORBIDDEN, "Authentication failed");
+        }
     }
 
     public TokenResponse refreshToken(String refreshToken) {

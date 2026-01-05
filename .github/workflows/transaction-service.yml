@@ -1,0 +1,45 @@
+name: Transaction Service CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'transaction-service/**'
+      - 'shared-kernel/**'
+      - 'pom.xml'
+      - '.github/workflows/transaction-service.yml'
+  pull_request:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'transaction-service/**'
+      - 'shared-kernel/**'
+      - 'pom.xml'
+
+jobs:
+  test:
+    name: Transaction Service Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Prepare Maven Wrapper
+        run: |
+          sed -i 's/\r$//' user-service/mvnw
+          chmod +x user-service/mvnw
+
+      - name: Build Parent and Shared Kernel
+        run: |
+          ./user-service/mvnw install -N -DskipTests -f pom.xml
+          ./user-service/mvnw install -DskipTests -f shared-kernel/pom.xml
+
+      - name: Run Transaction Service Tests
+        run: ./user-service/mvnw test -f transaction-service/pom.xml

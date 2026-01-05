@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS transactions (
         transfer_type IS NULL OR transfer_type IN ('INTERNAL', 'EXTERNAL')
     ),
     CONSTRAINT transactions_current_step_check CHECK (
-        current_step IS NULL OR current_step IN ('STARTED', 'OTP_VERIFIED', 'DEBITED', 'CREDITED', 'COMPLETED', 'ROLLING_BACK', 'ROLLED_BACK', 'FAILED', 'ROLLBACK_FAILED' ,'EXTERNAL_INITIATED')
+        current_step IS NULL OR current_step IN ('STARTED', 'OTP_VERIFIED', 'DEBITED', 'CREDITED', 'COMPLETED', 'ROLLING_BACK', 'ROLLED_BACK', 'FAILED', 'ROLLBACK_FAILED', 'EXTERNAL_INITIATED')
     )
 );
 

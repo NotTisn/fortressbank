@@ -1,0 +1,53 @@
+name: User Service CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'user-service/**'
+      - 'shared-kernel/**' # Code chung thay đổi -> phải test lại User Service
+      - 'pom.xml'          # Root pom thay đổi -> phải test lại
+      - '.github/workflows/user-service.yml'
+  pull_request:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'user-service/**'
+      - 'shared-kernel/**'
+      - 'pom.xml'
+
+jobs:
+  test:
+    name: User Service Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Lấy code về máy
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Cài đặt Java 21
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # 3. Cấp quyền chạy cho Maven Wrapper
+      # (Giả định file mvnw nằm trong thư mục user-service như cấu trúc hiện tại của bạn)
+      - name: Make mvnw executable
+        run: chmod +x user-service/mvnw
+
+      # 4. QUAN TRỌNG: Cài đặt Parent POM (Root)
+      # -N: Non-recursive (Chỉ cài đúng file pom.xml cha, không build lan sang con)
+      - name: Install Parent POM
+        run: ./user-service/mvnw install -N -DskipTests -f pom.xml
+
+      # 5. QUAN TRỌNG: Cài đặt Shared Kernel (Thư viện dùng chung)
+      # Phải cài cái này thì User Service mới tìm thấy dependency
+      - name: Install Shared Kernel
+        run: ./user-service/mvnw install -DskipTests -f shared-kernel/pom.xml
+
+      # 6. Cuối cùng: Chạy Test User Service
+      - name: Run User Service Tests
+        run: ./user-service/mvnw clean test jacoco:report -f user-service/pom.xml
