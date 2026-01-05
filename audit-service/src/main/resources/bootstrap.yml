@@ -4,5 +4,5 @@ spring:
   cloud:
     config:
       fail-fast: false
-      enabled: ${SPRING_CLOUD_CONFIG_ENABLED:false}
+      enabled: ${SPRING_CLOUD_CONFIG_ENABLED:true}
       uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8889}

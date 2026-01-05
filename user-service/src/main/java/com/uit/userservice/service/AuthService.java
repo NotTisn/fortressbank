@@ -27,6 +27,11 @@ public interface AuthService {
 
     void changePassword(ChangePasswordRequest request, String userId, String username);
 
+    // Forgot password flow
+    com.uit.userservice.dto.response.ForgotPasswordOtpResponse forgotPasswordSendOtp(ForgotPasswordSendOtpRequest request);
+    com.uit.userservice.dto.response.ForgotPasswordVerifyResponse forgotPasswordVerifyOtp(ForgotPasswordVerifyOtpRequest request);
+    com.uit.userservice.dto.response.ForgotPasswordResetResponse forgotPasswordReset(ForgotPasswordResetRequest request);
+
     // Face registration (public - no auth required, for post-registration flow)
     FaceRegistrationResult registerFacePublic(String userId, List<MultipartFile> files);
 }

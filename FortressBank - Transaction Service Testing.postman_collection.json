@@ -345,7 +345,50 @@
 					"response": []
 				},
 				{
-					"name": "New Request",
+					"name": "look up",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJGSFNlQWJCb09zTnNpUktrc1YyNzFHdl9ZSmRITEp4RlI4cG1qVFE4N3ZNIn0.eyJleHAiOjE3NjU3Njg0OTEsImlhdCI6MTc2NTc2ODE5MSwianRpIjoiMDY3ZWJlYzEtNmExOS00ODJlLWIzZTgtNjYxMzMwNGNkMzAxIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4ODg4L3JlYWxtcy9mb3J0cmVzc2JhbmstcmVhbG0iLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiODg3M2RiNDUtMjg2OC00NWJiLTkxYzItMGQ4MjY0ZmRjYTQ1IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoia29uZyIsInNlc3Npb25fc3RhdGUiOiI1YzNkYmQ2YS01MTI1LTQ0YjgtYTAwOC1hMGEzNmZhYjgzNmIiLCJhY3IiOiIxIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbIm9mZmxpbmVfYWNjZXNzIiwiZGVmYXVsdC1yb2xlcy1mb3J0cmVzc2JhbmstcmVhbG0iLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIGFkZHJlc3MgcHJvZmlsZSBwaG9uZSBvZmZsaW5lX2FjY2VzcyBtaWNyb3Byb2ZpbGUtand0IGVtYWlsIiwic2lkIjoiNWMzZGJkNmEtNTEyNS00NGI4LWEwMDgtYTBhMzZmYWI4MzZiIiwidXBuIjoibWluaHRyaW5lIiwiYWRkcmVzcyI6e30sImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwibmFtZSI6Ik5nbyBNaW5oIFRyaSIsImdyb3VwcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtZm9ydHJlc3NiYW5rLXJlYWxtIiwidW1hX2F1dGhvcml6YXRpb24iXSwicHJlZmVycmVkX3VzZXJuYW1lIjoibWluaHRyaW5lIiwiZ2l2ZW5fbmFtZSI6Ik5nbyBNaW5oIFRyaSIsImVtYWlsIjoibmdvbWluaHRyaTkxMDdAZ21haWwuY29tIn0.trp18MgWcHcCGeGDT4skKlZZFMEeroZ0ecbHP1D2IvXfjFhyqukaRzJM6FGFHc8kvCcW5KTMHXD9srzPg8pxXDYvYKFn54lNHRPkjSeaSuxVS0d8oRyWkndC64iiRiLxd-2qU1K2yfZXkdN3r9KwdJlMmzY6XN25cQVg7C2aWs7eawt2EE46FPpFN2Yy8OjOj3wyuoqxpg9d1-Zq2nMtOZOWi_v-dDtMM9WINLbaHD8gq0rYc7qkdtaoyi-XM3tXVgZpdgU7RZgUwvYMpgZ7zkn5s7X_aHtsgLJaaF0rrnnyPzdF_xT3_vgRtRN80XvBr01Ytu_Q5oci8FMfQ4s0PA",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"fullName\": \"Ngo Minh Tri\",\r\n  \"email\": \"\",\r\n  \"dob\": \"\"\r\n}\r\n"
+						},
+						"url": {
+							"raw": "http://localhost:8000/accounts/lookup?accountNumber=7898574743",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"accounts",
+								"lookup"
+							],
+							"query": [
+								{
+									"key": "accountNumber",
+									"value": "7898574743"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get account by accountNumber",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -585,138 +628,6 @@
 			]
 		},
 		{
-			"name": "1. Account Service - Direct Testing",
-			"item": [
-				{
-					"name": "1.2 Credit Account (Cộng tiền)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"accountId\": \"ACC002\",\n  \"amount\": 100.50,\n  \"transactionId\": \"TX-{{$randomUUID}}\",\n  \"description\": \"Test credit from Postman\"\n}"
-						},
-						"url": {
-							"raw": "http://localhost:4001/accounts/:accountId/credit",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "4001",
-							"path": [
-								"accounts",
-								":accountId",
-								"credit"
-							],
-							"variable": [
-								{
-									"key": "accountId",
-									"value": "ACC002",
-									"description": "Thay bằng account ID thực tế từ database"
-								}
-							]
-						},
-						"description": "**Test Credit Endpoint**\n\n**Mục đích:** Cộng tiền vào tài khoản\n\n**Expected Response (Success):**\n```json\n{\n  \"accountId\": \"ACC002\",\n  \"oldBalance\": 500.00,\n  \"newBalance\": 600.50,\n  \"transactionId\": \"TX-xxx\",\n  \"success\": true,\n  \"message\": \"Credit successful\"\n}\n```"
-					},
-					"response": []
-				},
-				{
-					"name": "1.1 Debit Account (Trừ tiền)",
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"accountId\": \"ACC001\",\n  \"amount\": 100.50,\n  \"transactionId\": \"6b2525b8-607d-4184-bea6-784c041a51a6\",\n  \"description\": \"Test debit from Postman\"\n}"
-						},
-						"url": {
-							"raw": "http://localhost:4001/accounts/:accountId/debit",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "4001",
-							"path": [
-								"accounts",
-								":accountId",
-								"debit"
-							],
-							"variable": [
-								{
-									"key": "accountId",
-									"value": "ACC001",
-									"description": "Thay bằng account ID thực tế từ database"
-								}
-							]
-						},
-						"description": "**Test Debit Endpoint**\n\n**Mục đích:** Trừ tiền từ tài khoản\n\n**Trước khi test:**\n1. Tìm account ID trong database: `SELECT account_id, balance FROM accounts;`\n2. Thay `ACC001` bằng account ID thực tế\n\n**Expected Response (Success):**\n```json\n{\n  \"accountId\": \"ACC001\",\n  \"oldBalance\": 1000.00,\n  \"newBalance\": 899.50,\n  \"transactionId\": \"TX-xxx\",\n  \"success\": true,\n  \"message\": \"Debit successful\"\n}\n```\n\n**Expected Response (Insufficient Balance):**\n```json\n{\n  \"success\": false,\n  \"message\": \"Insufficient balance in account: ACC001\",\n  \"transactionId\": \"TX-xxx\"\n}\n```"
-					},
-					"response": []
-				},
-				{
-					"name": "internal transfer",
-					"request": {
-						"method": "POST",
-						"header": [],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n   \"transactionId\": \"f47ac10b-58cc-4372-a567-0e02b2c3d479\",\r\n   \"fromAccountId\": \"a1b2c3d4-e5f6-7890-1234-567890abcdef\",\r\n   \"toAccountId\": \"fedcba98-7654-3210-fedc-ba9876543210\",\r\n   \"amount\": 50.25,\r\n   \"description\": \"Direct test of account service internal transfer\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
-							"raw": "http://localhost:8000/accounts/internal-transfer",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "8000",
-							"path": [
-								"accounts",
-								"internal-transfer"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "1.3 Get Account Balance",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "http://localhost:8000/accounts/",
-							"protocol": "http",
-							"host": [
-								"localhost"
-							],
-							"port": "8000",
-							"path": [
-								"accounts",
-								""
-							]
-						},
-						"description": "Check balance của account (cần JWT token)"
-					},
-					"response": []
-				}
-			],
-			"description": "Test trực tiếp các endpoint debit/credit của account-service"
-		},
-		{
 			"name": "2. Transaction Service - Full Flow",
 			"item": [
 				{
@@ -764,15 +675,15 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"senderAccountNumber\": \"1000000006\",\n    \"senderAccountId\": \"a1b2c3d4-e5f6-7890-1234-567890abcdef\",\n\n    \"receiverAccountNumber\": \"1000000002\",\n    \"amount\": 50.00,\n    \"transactionType\": \"INTERNAL_TRANSFER\",\n    \"description\": \"Test transfer from Postman\"\n}"
+							"raw": "{\n    \"senderAccountNumber\": \"1000000006\",\n    \"senderAccountId\": \"a1b2c3d4-e5f6-7890-1234-567890abcdef\",\n\n    // \"receiverAccountNumber\": \"1000000002\",\n    \"receiverAccountNumber\": \"acct_1SdmKkRy4vdhIyRt\", \n    \"amount\": 50.00,\n    \"transactionType\": \"EXTERNAL_TRANSFER\",//INTERNAL_TRANSFER\n    \"description\": \"Test transfer from Postman\"\n}"
 						},
 						"url": {
-							"raw": "http://localhost:8000/transactions/transfers",
+							"raw": "http://localhost:4004/transactions/transfers",
 							"protocol": "http",
 							"host": [
 								"localhost"
 							],
-							"port": "8000",
+							"port": "4004",
 							"path": [
 								"transactions",
 								"transfers"
@@ -794,15 +705,15 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"transactionId\": \"6c280a90-5d9e-4242-b0cf-8ffae25f26ab\",\n  \"otpCode\": \"612887\"\n}"
+							"raw": "{\n  \"transactionId\": \"42de7673-bb1b-4f07-8f46-19d2fcae79ee\",\n  \"otpCode\": \"746857\"\n}"
 						},
 						"url": {
-							"raw": "http://localhost:8000/transactions/verify-otp",
+							"raw": "http://localhost:4004/transactions/verify-otp",
 							"protocol": "http",
 							"host": [
 								"localhost"
 							],
-							"port": "8000",
+							"port": "4004",
 							"path": [
 								"transactions",
 								"verify-otp"
@@ -886,6 +797,178 @@
 								"stripe"
 							]
 						}
+					},
+					"response": []
+				},
+				{
+					"name": "2.4 Get Account Transaction History (Infinite Scroll)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"description": "JWT token"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8000/transactions/:accountNumber/history?offset=0&limit=10&type=ALL",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"transactions",
+								":accountNumber",
+								"history"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "type",
+									"value": "ALL",
+									"description": "SENT | RECEIVED | ALL"
+								}
+							],
+							"variable": [
+								{
+									"key": "accountNumber",
+									"value": "1000000006",
+									"description": "Account Number"
+								}
+							]
+						},
+						"description": "Get transaction history for a specific account with offset-based pagination (Infinite Scroll)"
+					},
+					"response": []
+				},
+				{
+					"name": "2.5 Admin Deposit",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"description": "JWT token (Admin Role required)"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountNumber\": \"1000000006\",\n    \"amount\": 500000,\n    \"description\": \"Admin Manual Deposit\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8000/transactions/admin/deposit",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"transactions",
+								"admin",
+								"deposit"
+							]
+						},
+						"description": "Admin manually deposits money into a user account"
+					},
+					"response": []
+				},
+				{
+					"name": "2.4 Get Account Transaction History (Infinite Scroll)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"description": "JWT token"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8000/transactions/:accountNumber/history?offset=0&limit=10&type=ALL",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"transactions",
+								":accountNumber",
+								"history"
+							],
+							"query": [
+								{
+									"key": "offset",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "type",
+									"value": "ALL",
+									"description": "SENT | RECEIVED | ALL"
+								}
+							],
+							"variable": [
+								{
+									"key": "accountNumber",
+									"value": "1000000006",
+									"description": "Account Number"
+								}
+							]
+						},
+						"description": "Get transaction history for a specific account with offset-based pagination (Infinite Scroll)"
+					},
+					"response": []
+				},
+				{
+					"name": "2.5 Admin Deposit",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}",
+								"description": "JWT token (Admin Role required)"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"accountNumber\": \"1000000006\",\n    \"amount\": 500000,\n    \"description\": \"Admin Manual Deposit\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8000/transactions/admin/deposit",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8000",
+							"path": [
+								"transactions",
+								"admin",
+								"deposit"
+							]
+						},
+						"description": "Admin manually deposits money into a user account"
 					},
 					"response": []
 				}

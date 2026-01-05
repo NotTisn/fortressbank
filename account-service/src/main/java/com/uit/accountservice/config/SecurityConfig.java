@@ -58,6 +58,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                 // Internal endpoints - should only be accessible via service mesh
                 // SECURITY NOTE: In production, these should be protected by network policies
                 .requestMatchers("/accounts/internal/**").permitAll()
+                .requestMatchers("/cards/internal/**").permitAll()
                 // Public endpoints - no authentication required
                 .requestMatchers("/accounts/public/**").permitAll()
                 // Actuator health check
@@ -109,6 +110,7 @@ public class SecurityConfig implements WebMvcConfigurer {
             }
             
             // Convert to Spring Security authorities with ROLE_ prefix
+            // NOTE: Do NOT uppercase - Spring Security's hasRole('admin') expects 'ROLE_admin' not 'ROLE_ADMIN'
             return roles.stream()
                     .map(roleName -> "ROLE_" + roleName.toUpperCase())
                     .map(SimpleGrantedAuthority::new)

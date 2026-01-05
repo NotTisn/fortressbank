@@ -33,9 +33,9 @@ public class FeignConfig {
                 if (attributes != null) {
                     String authHeader = attributes.getRequest().getHeader("Authorization");
                     if (authHeader != null) {
-                        // Forward JWT token to Account Service
-                        template.header("Authorization", authHeader);
-                        log.debug("Forwarding Authorization header to {} {}",
+                        // Forwarding JWT token is disabled to avoid 401 on internal endpoints
+                        // template.header("Authorization", authHeader);
+                        log.debug("Authorization header forwarding is disabled for {} {}",
                             template.method(), template.url());
                     }
                 }

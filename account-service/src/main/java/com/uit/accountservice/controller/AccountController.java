@@ -1,7 +1,6 @@
 package com.uit.accountservice.controller;
 
 import com.uit.accountservice.dto.request.*;
-import com.uit.accountservice.entity.TransferAuditLog;
 import com.uit.accountservice.mapper.AccountMapper;
 import com.uit.accountservice.repository.AccountRepository;
 import com.uit.accountservice.security.RequireRole;
@@ -13,7 +12,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -103,7 +101,7 @@ public class AccountController {
     /**
      * Credit (add) amount to an account.
      */
-    @PostMapping("/{accountId}/credit")
+    @PostMapping("/internal/{accountId}/credit")
     public ResponseEntity<?> creditAccount(
             @PathVariable String accountId,
             @RequestBody com.uit.accountservice.dto.request.AccountBalanceRequest request) {
@@ -173,12 +171,13 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success(accounts));
     }
 
-    // GET /accounts/lookup?accountNumber=xxx
+    // GET /accounts/lookup?accountNumber=xxx&bankName=Stripe
     // Used to check if an account exists before initiating a transfer
     @GetMapping("/lookup")
     public ResponseEntity<ApiResponse<AccountDto>> lookupAccountByAccountNumber(
-            @RequestParam("accountNumber") String accountNumber) {
-        AccountDto account = accountService.getAccountByAccountNumber(accountNumber);
+            @RequestParam String accountNumber,
+            @RequestParam(required = false, defaultValue = "Fortress Bank") String bankName) {
+        AccountDto account = accountService.getAccountByAccountNumber(accountNumber, bankName);
         return ResponseEntity.ok(ApiResponse.success(account));
     }
 
@@ -188,9 +187,9 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success(account));
     }
 
-    @GetMapping("/by-number/{accountNumber}")
+    @GetMapping("/internal/by-number/{accountNumber}")
     public ResponseEntity<AccountDto> getAccountByNumber(@PathVariable String accountNumber) {
-        return ResponseEntity.ok(accountService.getAccountByNumber(accountNumber));
+        return ResponseEntity.ok(accountService.getAccountByAccountNumber(accountNumber, "Fortress Bank"));
     }
 
     // GET /accounts/{accountId}/balance
@@ -256,6 +255,22 @@ public class AccountController {
             @Valid @RequestBody VerifyPinRequest request) {
         boolean isValid = accountService.verifyPin(accountId, getCurrentUserId(), request.pin());
         return ResponseEntity.ok(ApiResponse.success(Map.of("valid", isValid)));
+    }
+
+    // POST /accounts/transfers
+    // Initiate transfer with ownership validation
+    @PostMapping("/transfers")
+    @RequireRole("user")
+    public ResponseEntity<ApiResponse<Map<String, String>>> initiateTransfer(
+            @Valid @RequestBody TransferRequest request) {
+        // Validate ownership of sender account
+        String userId = getCurrentUserId();
+        accountService.initiateTransferWithOwnershipCheck(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
+            "message", "Transfer initiated successfully",
+            "fromAccountId", request.getSenderAccountId(),
+            "toAccountId", request.getReceiverAccountId()
+        )));
     }
 
     // ==================== PUBLIC ENDPOINTS (LIMITED ACCESS) ====================

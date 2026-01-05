@@ -26,12 +26,12 @@ public class UserPreferenceController {
      * GET /user-preferences/{userId}
      */
     @GetMapping("/{userId}")
-    public ResponseEntity<ApiResponse<UserPreferenceResponse>> getUserPreference(
-            @PathVariable String userId) {
+    public ResponseEntity<UserPreferenceResponse> getUserPreference(
+            @PathVariable("userId") String userId) {
         
         log.info("GET request for user preference: {}", userId);
         UserPreferenceResponse response = userPreferenceService.getUserPreference(userId);
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.status(200).body(response);
     }
 
     /**
@@ -52,7 +52,7 @@ public class UserPreferenceController {
      */
     @PostMapping("/{userId}")
     public ResponseEntity<ApiResponse<UserPreferenceResponse>> createOrUpdateUserPreference(
-            @PathVariable String userId,
+            @PathVariable("userId") String userId,
             @Valid @RequestBody UserPreferenceRequest request) {
         
         log.info("POST request to create/update user preference for user: {}", userId);

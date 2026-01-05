@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
  * Handles: payment.created (Connected Account receives funds), transfer.reversed, transfer.failed
  */
 @RestController
-@RequestMapping("/api/webhook/stripe")
+@RequestMapping("transactions/public/api/webhook/stripe")
 @Slf4j
 @RequiredArgsConstructor
 public class StripeWebhookController {
@@ -57,12 +57,10 @@ public class StripeWebhookController {
             // Handle based on event type
             switch (event.getType()) {
                 case "transfer.created":
-                    // Platform event - just log, actual confirmation comes from payment.created
                     log.info("Platform transfer created - EventID: {}", event.getId());
                     break;
                     
                 case "payment.created":
-                    // Connected Account received funds - THIS CONFIRMS USER B GOT MONEY
                     if (accountId != null) {
                         handlePaymentCreated(event, accountId);
                     }
@@ -101,7 +99,7 @@ public class StripeWebhookController {
         try {
             String webhookIdempotencyKey = event.getId();
             
-            log.info("📥 Processing payment.created - EventID: {} - API Version: {}", webhookIdempotencyKey, event.getApiVersion());
+            log.info(" Processing payment.created - EventID: {} - API Version: {}", webhookIdempotencyKey, event.getApiVersion());
             
             // Deserialize the nested object inside the event
             com.stripe.model.EventDataObjectDeserializer dataObjectDeserializer = event.getDataObjectDeserializer();
@@ -111,8 +109,8 @@ public class StripeWebhookController {
                 stripeObject = dataObjectDeserializer.getObject().get();
             } else {
                 // Deserialization failed, probably due to an API version mismatch
-                log.error("❌ DESERIALIZATION FAILED - EventID: {} - API Version: {} - SDK may be incompatible", webhookIdempotencyKey, event.getApiVersion());
-                log.error("📋 Raw event data: {}", event.getData().toJson());
+                log.error("DESERIALIZATION FAILED - EventID: {} - API Version: {} - SDK may be incompatible", webhookIdempotencyKey, event.getApiVersion());
+                log.error("Raw event data: {}", event.getData().toJson());
                 throw new RuntimeException("Cannot deserialize payment.created event - API version mismatch - EventID: " + webhookIdempotencyKey);
             }
             
@@ -123,7 +121,7 @@ public class StripeWebhookController {
             String sourceTransferId = charge.getSourceTransfer();
             Long amountCents = charge.getAmount();
             
-            // ✅ GET transaction_id FROM TRANSFER METADATA
+
             String transactionId = null;
             if (sourceTransferId != null && !sourceTransferId.isEmpty()) {
                 try {
@@ -136,14 +134,13 @@ public class StripeWebhookController {
                 }
             }
 
-            log.info("✅ PAYMENT CREATED - User B RECEIVED FUNDS - AccountID: {} - ChargeID: {} - Amount: {} cents - SourceTransfer: {} - TransactionID: {} - EventID: {}", 
+            log.info("PAYMENT CREATED - User B RECEIVED FUNDS - AccountID: {} - ChargeID: {} - Amount: {} cents - SourceTransfer: {} - TransactionID: {} - EventID: {}", 
                     accountId, chargeId, amountCents, sourceTransferId, transactionId, webhookIdempotencyKey);
 
             if (transactionId != null && !transactionId.isEmpty()) {
-                // ✅ FIND TRANSACTION BY transaction_id FROM METADATA
                 transactionService.handleStripeTransferCompleted(transactionId, sourceTransferId, webhookIdempotencyKey);
             } else {
-                log.warn("❌ Payment created without transaction_id in metadata - Cannot link to transaction. EventID: {}", webhookIdempotencyKey);
+                log.warn("Payment created without transaction_id in metadata - Cannot link to transaction. EventID: {}", webhookIdempotencyKey);
             }
             
         } catch (ClassCastException e) {

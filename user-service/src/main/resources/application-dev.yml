@@ -1,5 +1,5 @@
 server:
-  port: ${SERVER_PORT:4003}
+  port: ${SERVER_PORT:4000}
 
 spring:
   security:
@@ -8,7 +8,7 @@ spring:
         jwt:
           issuer-uri: http://keycloak:8080/realms/fortressbank-realm
   datasource:
-    url: jdbc:postgresql://localhost:5432/userdb
+    url: jdbc:postgresql://localhost:5433/userdb
     username: postgres
     password: 123456
     driver-class-name: org.postgresql.Driver

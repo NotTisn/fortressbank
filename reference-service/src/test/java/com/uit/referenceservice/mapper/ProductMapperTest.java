@@ -4,17 +4,23 @@ import com.uit.referenceservice.dto.response.ProductResponse;
 import com.uit.referenceservice.entity.ProductCatalog;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mapstruct.factory.Mappers;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = {ProductMapperImpl.class})
 @DisplayName("ProductMapper Unit Tests")
 class ProductMapperTest {
 
-    private final ProductMapper mapper = Mappers.getMapper(ProductMapper.class);
+    @Autowired
+    private ProductMapper mapper;
 
     @Test
     @DisplayName("toDto() maps ProductCatalog to ProductResponse")

@@ -25,7 +25,7 @@ public class OutboxScheduler {
     private static final int MAX_RETRY_COUNT = 3;
     private static final int RETRY_MINUTES_DELAY = 5;
 
-    // @Scheduled(fixedDelayString = "${outbox.scheduler.fixed-delay:5000}", initialDelayString = "${outbox.scheduler.initial-delay:10000}")
+    @Scheduled(fixedDelayString = "${outbox.scheduler.fixed-delay:5000}", initialDelayString = "${outbox.scheduler.initial-delay:10000}")
     @Transactional
     public void processOutboxEvents() {
         log.debug("Starting outbox scheduler job...");

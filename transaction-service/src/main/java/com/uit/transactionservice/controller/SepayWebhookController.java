@@ -35,15 +35,15 @@ public class SepayWebhookController {
         }
 
         String content = webhookDto.getContent();
-        String accountId = extractAccountId(content);
+        String accountNumber = extractAccountId(content);
 
-        if (accountId == null) {
+        if (accountNumber == null) {
             log.error("Failed to extract Account ID from content: {}", content);
             return ResponseEntity.badRequest().body("Invalid content format. Expected FB<AccountId>");
         }
 
         try {
-            transactionService.handleSepayTopup(webhookDto, accountId);
+            transactionService.handleSepayTopup(webhookDto, accountNumber);
             return ResponseEntity.ok("Webhook processed successfully");
         } catch (Exception e) {
             log.error("Error processing SePay webhook", e);

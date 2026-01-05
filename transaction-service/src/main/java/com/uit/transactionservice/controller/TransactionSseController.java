@@ -43,7 +43,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  * </pre>
  */
 @RestController
-@RequestMapping("/api/transactions")
+@RequestMapping("/transactions")
 @RequiredArgsConstructor
 @Slf4j
 public class TransactionSseController {

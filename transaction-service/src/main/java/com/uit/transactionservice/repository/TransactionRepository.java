@@ -21,12 +21,14 @@ public interface TransactionRepository extends JpaRepository<Transaction, java.u
 
     Page<Transaction> findByStatus(TransactionStatus status, Pageable pageable);
 
-    Page<Transaction> findBySenderAccountIdOrReceiverAccountId(String senderAccountId, String receiverAccountId, Pageable pageable);
+    // New methods for Account Number based history
+    Page<Transaction> findBySenderAccountNumber(String senderAccountNumber, Pageable pageable);
+
+    Page<Transaction> findByReceiverAccountNumber(String receiverAccountNumber, Pageable pageable);
+
+    Page<Transaction> findBySenderAccountNumberOrReceiverAccountNumber(String senderAccountNumber, String receiverAccountNumber, Pageable pageable);
 
     List<Transaction> findByCreatedAtBetween(LocalDateTime start, LocalDateTime end);
-
-    @Query("SELECT t FROM Transaction t WHERE t.senderAccountId = :accountId OR t.receiverAccountId = :accountId")
-    Page<Transaction> findByAccountId(@Param("accountId") String accountId, Pageable pageable);
 
     @Query(value = "SELECT COALESCE(SUM(amount + fee_amount), 0) FROM transactions " +
            "WHERE sender_account_id = :accountId " +

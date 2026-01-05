@@ -12,11 +12,11 @@ import java.util.Map;
 
 /**
  * FeignClient for Account Service communication
- * Uses Eureka service discovery to locate account-service
+ * Uses Eureka service discovery or direct URL to locate account-service
  *
  * contextId is required when multiple FeignClients target the same service
  */
-@FeignClient(name = "account-service", contextId = "accountServiceClient")
+@FeignClient(name = "account-service", url = "${services.account-service.url:http://localhost:4001}", contextId = "accountServiceClient")
 public interface AccountServiceFeignClient {
 
     /**
@@ -32,7 +32,7 @@ public interface AccountServiceFeignClient {
     /**
      * Credit (add) amount to an account
      */
-    @PostMapping("/accounts/{accountId}/credit")
+    @PostMapping("/accounts/internal/{accountId}/credit")
     AccountBalanceResponse creditAccount(
             @PathVariable("accountId") String accountId,
             @RequestBody AccountBalanceRequest request
@@ -41,7 +41,7 @@ public interface AccountServiceFeignClient {
     /**
      * Get account details by account number
      */
-    @GetMapping("/accounts/by-number/{accountNumber}")
+    @GetMapping("/accounts/internal/by-number/{accountNumber}")
     ResponseEntity<Map<String, Object>> getAccountByNumber(
             @PathVariable("accountNumber") String accountNumber
     );

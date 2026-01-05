@@ -3,18 +3,24 @@ package com.uit.notificationservice.service;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.uit.notificationservice.dto.EmailNotificationRequest;
 import com.uit.notificationservice.dto.SendNotificationRequest;
+import com.uit.notificationservice.dto.SendNotificationResponse;
 import com.uit.notificationservice.dto.TextBeeRequest;
 import com.uit.notificationservice.entity.NotificationMessage;
+import com.uit.notificationservice.mapper.NotificationMessageMapper;
 import com.uit.notificationservice.repository.NotificationRepo;
+import com.uit.sharedkernel.exception.AppException;
+import com.uit.sharedkernel.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Slf4j
@@ -23,6 +29,7 @@ public class NotificationService {
 
     private final WebClient.Builder webClientBuilder;
     private final NotificationRepo notificationRepo;
+
     private final FirebaseMessagingService firebaseMessagingService;
     private final EmailService emailService;
 
@@ -35,9 +42,7 @@ public class NotificationService {
     public void sendSmsOtp(String phoneNumber, String otpCode) {
         String url = "https://api.textbee.dev/api/v1/gateway/devices/" + deviceId + "/send-sms";
 
-        TextBeeRequest request = new TextBeeRequest(new String[]{"0857311444"}, "Your FortressBank verification code is: " + otpCode);
-
-
+        TextBeeRequest request = new TextBeeRequest(new String[]{phoneNumber}, "Your FortressBank verification code is: " + otpCode);
 
         webClientBuilder.build()
                 .post()
@@ -54,6 +59,23 @@ public class NotificationService {
 
     public List<NotificationMessage> getNotifications() {
         return notificationRepo.findAll();
+    }
+
+    public NotificationMessage markAsRead(String notificationId) {
+        Optional<NotificationMessage> notificationMessage = notificationRepo.findById(notificationId);
+        if (notificationMessage.isEmpty()) {
+            throw new AppException(ErrorCode.NOTIF_NOT_FOUND);
+        }
+
+        NotificationMessage message = notificationMessage.get();
+
+        message.setRead(true);
+        message.setReadAt(LocalDateTime.now());
+
+        notificationRepo.save(message);
+        log.info("Message's read: {}", message.getReadAt());
+        log.info("Message's read: {}", message.isRead());
+        return message;
     }
 
     /**
@@ -97,9 +119,9 @@ public class NotificationService {
                     .content(content)
                     .type("TRANSACTION")
                     .deviceToken(deviceToken)
-                    .isRead(false)
-                    .sentAt(new Date())
-                    .createdAt(new Date())
+                    .read(false)
+                    .sentAt(LocalDateTime.now())
+                    .createdAt(LocalDateTime.now())
                     .build();
 
             notificationRepo.save(notification);
@@ -112,7 +134,7 @@ public class NotificationService {
                     .content(content)
                     .type("TRANSACTION")
                     .isRead(false)
-                    .sentAt(new Date())
+                    .sentAt(LocalDateTime.now())
                     .build();
 
             firebaseMessagingService.sendNotification(deviceToken, request);
@@ -192,9 +214,9 @@ public class NotificationService {
                 .image(request.getImage())
                 .type(request.getType())
                 .deviceToken(request.getDeviceToken())
-                .isRead(false)
-                .sentAt(new Date())
-                .createdAt(new Date())
+                .read(false)
+                .sentAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
                 .build();
 
         notificationRepo.save(newNotification);

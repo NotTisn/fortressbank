@@ -19,7 +19,11 @@ public class StripeConfig {
 
     @PostConstruct
     public void init() {
-        Stripe.apiKey = apiKey;
-        log.info("Stripe API initialized successfully");
+        if (apiKey != null && !apiKey.isEmpty()) {
+            Stripe.apiKey = apiKey;
+            log.info("Stripe API initialized successfully");
+        } else {
+            log.warn("Stripe API key not found. External lookups will fail.");
+        }
     }
 }

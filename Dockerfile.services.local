@@ -1,0 +1,64 @@
+# =============================================================================
+# FAST LOCAL DEVELOPMENT DOCKERFILE
+# =============================================================================
+# PREREQUISITE: You MUST run 'mvn clean package -DskipTests' on your host machine
+# BEFORE building these images. This Dockerfile only copies the pre-built JARs.
+# =============================================================================
+
+# Base stage with Java Runtime
+FROM eclipse-temurin:21-jre as base
+WORKDIR /app
+
+# --- Discovery Service ---
+FROM base as discovery
+COPY discovery/target/discovery-*.jar app.jar
+EXPOSE 8761
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# --- Config Server ---
+FROM base as config-server
+COPY config-server/target/config-server-*.jar app.jar
+EXPOSE 8888
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# --- User Service ---
+FROM base as user-service
+COPY user-service/target/user-service-*.jar app.jar
+EXPOSE 4000
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# --- Account Service ---
+FROM base as account-service
+COPY account-service/target/account-service-*.jar app.jar
+EXPOSE 4001
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# --- Notification Service ---
+FROM base as notification-service
+COPY notification-service/target/notification-service-*.jar app.jar
+EXPOSE 4002
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# --- Reference Service ---
+FROM base as reference-service
+COPY reference-service/target/reference-service-*.jar app.jar
+EXPOSE 4003
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# --- Transaction Service ---
+FROM base as transaction-service
+COPY transaction-service/target/transaction-service-*.jar app.jar
+EXPOSE 4004
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# --- Audit Service ---
+FROM base as audit-service
+COPY audit-service/target/audit-service-*.jar app.jar
+EXPOSE 4005
+ENTRYPOINT ["java", "-jar", "app.jar"]
+
+# --- Risk Engine ---
+FROM base as risk-engine
+COPY risk-engine/target/risk-engine-*.jar app.jar
+EXPOSE 6000
+ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -8,5 +8,6 @@ import java.util.List;
 
 public interface FaceIdService {
     FaceRegistrationResult registerFace(String userId, List<MultipartFile> files);
-    FaceVerificationResult verifyFace(String userId, List<MultipartFile> files);
+    FaceRegistrationResult updateFace(String userId, List<MultipartFile> files);
+    FaceVerificationResult verifyFace(String userId, List<MultipartFile> files, String transactionId);
 }

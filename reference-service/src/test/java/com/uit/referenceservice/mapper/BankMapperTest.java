@@ -4,17 +4,23 @@ import com.uit.referenceservice.dto.response.BankResponse;
 import com.uit.referenceservice.entity.Bank;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mapstruct.factory.Mappers;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = {BankMapperImpl.class})
 @DisplayName("BankMapper Unit Tests")
 class BankMapperTest {
 
-    private final BankMapper mapper = Mappers.getMapper(BankMapper.class);
+    @Autowired
+    private BankMapper mapper;
 
     @Test
     @DisplayName("toDto() maps Bank to BankResponse")

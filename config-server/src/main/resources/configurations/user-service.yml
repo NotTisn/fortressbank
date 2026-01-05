@@ -11,8 +11,8 @@ spring:
 
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://user-service-db:5432/userdb}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -34,12 +34,19 @@ spring:
           max-idle: 8
           min-idle: 0
 
+  # RabbitMQ Configuration
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: guest
+    password: guest
+
   # Email Configuration - SendGrid
   mail:
     host: ${MAIL_HOST:smtp.sendgrid.net}
     port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:apikey}
-    password: ${MAIL_PASSWORD}  # SendGrid API Key
+    password: ${MAIL_PASSWORD} # SendGrid API Key
     properties:
       mail:
         smtp:
@@ -54,7 +61,7 @@ spring:
 # Custom Email Configuration
 fortress-bank:
   email:
-    from: ${EMAIL_FROM}  # Must be verified sender email
+    from: ${EMAIL_FROM} # Must be verified sender email
     from-name: ${EMAIL_FROM_NAME:Fortress Bank}
     otp:
       subject: "Your OTP Code - Fortress Bank"
