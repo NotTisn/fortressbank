@@ -246,7 +246,9 @@ services:
       - "8000:8000"  # Proxy
       - "8001:8001"  # Admin API
     volumes:
-      - ../kong/kong.yml:/usr/local/kong/declarative/kong.yml
+      # Use kong.local.yml for hybrid mode (services on localhost)
+      # Use kong.yml for full Docker mode (all services in containers)
+      - ../kong/${KONG_CONFIG:-kong.local.yml}:/usr/local/kong/declarative/kong.yml
     depends_on:
       keycloak:
         condition: service_healthy

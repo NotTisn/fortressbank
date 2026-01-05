@@ -1,0 +1,257 @@
+_format_version: "3.0"
+# ==============================================================================
+# Kong Configuration for HYBRID MODE (Infrastructure in Docker, Services local)
+# ==============================================================================
+# Uses host.docker.internal to reach services running on localhost
+# Use with: docker exec fortressbank-kong kong reload after updating
+
+services:
+  # public auth endpoints
+  - name: user-auth-service
+    url: http://host.docker.internal:4000
+    routes:
+      - name: user-auth-route
+        paths:
+          - /auth
+        strip_path: false
+
+  # protected user endpoints
+  - name: user-main-service
+    url: http://host.docker.internal:4000
+    routes:
+      - name: user-main-route
+        paths:
+          - /users
+          - /roles
+        strip_path: false
+
+  # Smart OTP (TOTP) management endpoints - protected by OIDC
+  - name: totp-service
+    url: http://host.docker.internal:4000
+    routes:
+      - name: totp-route
+        paths:
+          - /totp
+        strip_path: false
+
+  # Device management for Smart OTP - protected by OIDC
+  - name: devices-service
+    url: http://host.docker.internal:4000
+    routes:
+      - name: devices-route
+        paths:
+          - /devices
+        strip_path: false
+
+  # Smart OTP verification endpoints - protected by OIDC
+  - name: smart-otp-service
+    url: http://host.docker.internal:4000
+    routes:
+      - name: smart-otp-route
+        paths:
+          - /smart-otp
+        strip_path: false
+
+  - name: admin-user-service
+    url: http://host.docker.internal:4000
+    routes:
+      - name: admin-user-route
+        paths:
+          - /admin/users
+        strip_path: false
+
+  # public account endpoints (no auth required)
+  - name: account-public-service
+    url: http://host.docker.internal:4001
+    routes:
+      - name: account-public-route
+        paths:
+          - /accounts/public
+        strip_path: false
+
+  # protected account
+  - name: account-service
+    url: http://host.docker.internal:4001
+    routes:
+      - name: account-service-route
+        paths:
+          - /accounts
+          - /beneficiaries
+          - /cards
+        strip_path: false
+
+  # protected transaction service
+  - name: transaction-service
+    url: http://host.docker.internal:4004
+    routes:
+      - name: transaction-service-route
+        paths:
+          - /transactions
+        strip_path: false
+      - name: transaction-public-route
+        paths:
+          - /transactions/public
+        strip_path: false
+
+  # reference-service
+  - name: reference-service
+    url: http://host.docker.internal:4003
+    routes:
+      - name: reference-service-route
+        paths:
+          - /banks
+          - /products
+        strip_path: false
+
+  - name: notification-service
+    url: http://host.docker.internal:4002
+    routes:
+      - name: notification-service-route
+        paths:
+          - /notifications
+          - /user-preferences
+        strip_path: false
+
+# ============================================================================
+# AUTHENTICATION CONFIGURATION
+# ============================================================================
+
+plugins:
+  # PROTECT user-main-route ONLY
+  - name: openid-connect
+    route: user-main-route
+    config:
+      client_id: "kong"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      session_secret: "random-secret-here"
+      scope: "openid profile email"
+      ssl_verify: false
+      bearer_only: true
+      token_endpoint_auth_method: "client_secret_post"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+
+  # PROTECT TOTP endpoints
+  - name: openid-connect
+    route: totp-route
+    config:
+      client_id: "kong"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      session_secret: "random-secret-here"
+      scope: "openid profile email"
+      ssl_verify: false
+      bearer_only: true
+      token_endpoint_auth_method: "client_secret_post"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+
+  # PROTECT Device management endpoints
+  - name: openid-connect
+    route: devices-route
+    config:
+      client_id: "kong"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      session_secret: "random-secret-here"
+      scope: "openid profile email"
+      ssl_verify: false
+      bearer_only: true
+      token_endpoint_auth_method: "client_secret_post"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+
+  # PROTECT Smart OTP endpoints
+  - name: openid-connect
+    route: smart-otp-route
+    config:
+      client_id: "kong"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      session_secret: "random-secret-here"
+      scope: "openid profile email"
+      ssl_verify: false
+      bearer_only: true
+      token_endpoint_auth_method: "client_secret_post"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+
+  - name: openid-connect
+    route: admin-user-route
+    config:
+      client_id: "kong"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      scope: "openid profile email"
+      ssl_verify: false
+      bearer_only: true
+      token_endpoint_auth_method: "client_secret_post"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+
+  # PROTECT account service
+  - name: openid-connect
+    route: account-service-route
+    config:
+      client_id: "kong"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      session_secret: "random-secret-here"
+      scope: "openid profile email"
+      ssl_verify: false
+      bearer_only: true
+      token_endpoint_auth_method: "client_secret_post"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+
+  - name: openid-connect
+    route: transaction-service-route
+    config:
+      client_id: "kong"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      session_secret: "random-secret-here"
+      scope: "openid profile email"
+      ssl_verify: false
+      bearer_only: true
+      token_endpoint_auth_method: "client_secret_post"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+
+  # Notification service authentication
+  - name: openid-connect
+    route: notification-service-route
+    config:
+      client_id: "kong"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+      discovery: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
+      session_secret: "random-secret-here"
+      scope: "openid profile email"
+      ssl_verify: false
+      bearer_only: true
+      token_endpoint_auth_method: "client_secret_post"
+      introspection_endpoint: "http://fortressbank-keycloak:8080/realms/fortressbank-realm/protocol/openid-connect/token/introspect"
+
+  # GLOBAL rate limit
+  - name: rate-limiting
+    config:
+      minute: 100
+      hour: 5000
+      limit_by: consumer
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+
+  # ACCOUNT rate limit - stricter for financial operations
+  - name: rate-limiting
+    service: account-service
+    config:
+      minute: 60
+      hour: 2000
+      limit_by: consumer
+      policy: local
+      fault_tolerant: true
+
+  # USER rate limit
+  - name: rate-limiting
+    service: user-main-service
+    config:
+      minute: 80
+      hour: 3000
+      limit_by: consumer
+      policy: local
+      fault_tolerant: true
