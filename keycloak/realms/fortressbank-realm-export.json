@@ -52,7 +52,7 @@
       "composites" : {
         "realm" : [ "offline_access", "uma_authorization" ],
         "client" : {
-          "account" : [ "view-profile", "manage-account" ]
+          "account" : [ "view-profile", "manage-account"]
         }
       },
       "clientRole" : false,
@@ -429,6 +429,23 @@
     "realmRoles" : [ "default-roles-fortressbank-realm", "admin", "user" ],
     "notBefore" : 0,
     "groups" : [ ]
+  }, {
+    "id" : "service-account-kong",
+    "createdTimestamp" : 1760329591838,
+    "username" : "service-account-kong",
+    "enabled" : true,
+    "totp" : false,
+    "emailVerified" : false,
+    "serviceAccountClientId" : "kong",
+    "credentials" : [ ],
+    "disableableCredentialTypes" : [ ],
+    "requiredActions" : [ ],
+    "realmRoles" : [ "default-roles-fortressbank-realm" ],
+    "clientRoles" : {
+      "realm-management" : [ "manage-users", "view-users", "query-users" ]
+    },
+    "notBefore" : 0,
+    "groups" : [ ]
   } ],
   "scopeMappings" : [ {
     "clientScope" : "offline_access",
@@ -438,6 +455,10 @@
     "account" : [ {
       "client" : "account-console",
       "roles" : [ "manage-account", "view-groups" ]
+    } ],
+    "realm-management" : [ {
+      "client" : "kong",
+      "roles" : [ "manage-users", "view-users", "query-users" ]
     } ]
   },
   "clients" : [ {
@@ -668,7 +689,7 @@
     "standardFlowEnabled" : true,
     "implicitFlowEnabled" : false,
     "directAccessGrantsEnabled" : true,
-    "serviceAccountsEnabled" : false,
+    "serviceAccountsEnabled" : true,
     "publicClient" : false,
     "frontchannelLogout" : true,
     "protocol" : "openid-connect",
