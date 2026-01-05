@@ -18,11 +18,17 @@ spring:
     username: ${SPRING_RABBITMQ_USERNAME:guest}
     password: ${SPRING_RABBITMQ_PASSWORD:guest}
 
+# keycloak:
+#   auth-server-url: http://keycloak:8080
+#   realm: fortressbank-realm
+#   clientId: kong
+#   clientSecret: XLODsjH5G3f9iqGftbrkdHeNw3NVfNdZ
+
 keycloak:
   auth-server-url: http://keycloak:8080
   realm: fortressbank-realm
-  client-id: kong
-  client-secret: pmFStZwGO8sb0mBDkZmP5niE3wmEELqe
+  clientId: kong
+  clientSecret: pmFStZwGO8sb0mBDkZmP5niE3wmEELqe
 
 # Default configuration for AI Service
 fortress-bank:
