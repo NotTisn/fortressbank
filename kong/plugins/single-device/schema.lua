@@ -10,7 +10,8 @@ return {
         fields = {
           { keycloak_url = { type = "string", required = true }, },
           { realm = { type = "string", required = true }, },
-          { admin_token = { type = "string", required = true }, },
+          { client_id = { type = "string", required = true }, },
+          { client_secret = { type = "string", required = true }, },
         },
       },
     },

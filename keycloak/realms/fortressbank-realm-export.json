@@ -390,6 +390,16 @@
   "webAuthnPolicyPasswordlessAvoidSameAuthenticatorRegister" : false,
   "webAuthnPolicyPasswordlessAcceptableAaguids" : [ ],
   "users" : [ {
+    "id" : "service-account-kong-id",
+    "username" : "service-account-kong",
+    "enabled" : true,
+    "emailVerified" : false,
+    "serviceAccountClientId" : "kong",
+    "clientRoles" : {
+      "realm-management" : [ "realm-admin" ]
+    },
+    "realmRoles" : [ "default-roles-fortressbank-realm" ]
+  }, {
     "id" : "ee32bbff-74d6-43e4-80c5-38ffead3dda4",
     "createdTimestamp" : 1760662758392,
     "username" : "service-account-backend-service",
@@ -668,7 +678,7 @@
     "standardFlowEnabled" : true,
     "implicitFlowEnabled" : false,
     "directAccessGrantsEnabled" : true,
-    "serviceAccountsEnabled" : false,
+    "serviceAccountsEnabled" : true,
     "publicClient" : false,
     "frontchannelLogout" : true,
     "protocol" : "openid-connect",

@@ -46,14 +46,50 @@ local function decode_jwt_payload(token)
   return payload, nil
 end
 
+local function get_admin_token(conf)
+  local httpc = http.new()
+  local url = string.format("%s/realms/%s/protocol/openid-connect/token", conf.keycloak_url, conf.realm)
+
+  local res, err = httpc:request_uri(url, {
+    method = "POST",
+    body = string.format("grant_type=client_credentials&client_id=%s&client_secret=%s", 
+                         conf.client_id, conf.client_secret),
+    headers = {
+      ["Content-Type"] = "application/x-www-form-urlencoded",
+    },
+    ssl_verify = false,
+  })
+
+  if not res then
+    return nil, "failed to get admin token: " .. (err or "unknown")
+  end
+
+  if res.status ~= 200 then
+    return nil, "failed to get admin token, status: " .. res.status
+  end
+
+  local data, decode_err = cjson.decode(res.body)
+  if not data then
+    return nil, "failed to decode token response: " .. (decode_err or "unknown")
+  end
+
+  return data.access_token, nil
+end
+
 local function fetch_user_sessions(conf, user_id)
+  -- Get token automatically using client credentials
+  local token, token_err = get_admin_token(conf)
+  if not token then
+    return nil, token_err
+  end
+
   local httpc = http.new()
   local url = string.format("%s/admin/realms/%s/users/%s/sessions", conf.keycloak_url, conf.realm, user_id)
 
   local res, err = httpc:request_uri(url, {
     method = "GET",
     headers = {
-      ["Authorization"] = "Bearer " .. conf.admin_token,
+      ["Authorization"] = "Bearer " .. token,
       ["Accept"] = "application/json",
     },
     ssl_verify = false,
