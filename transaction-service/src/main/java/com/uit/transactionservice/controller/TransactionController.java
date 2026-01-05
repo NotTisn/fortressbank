@@ -1,7 +1,9 @@
 package com.uit.transactionservice.controller;
 
 import com.uit.sharedkernel.api.ApiResponse;
+import com.uit.sharedkernel.security.JwtUtils;
 import com.uit.transactionservice.dto.VerifyOTPRequest;
+import com.uit.transactionservice.dto.request.ConfirmFaceAuthRequest;
 import com.uit.transactionservice.dto.request.CreateTransferRequest;
 import com.uit.transactionservice.dto.request.ResendOtpRequest;
 import com.uit.transactionservice.dto.request.VerifyDeviceSignatureRequest;
@@ -25,7 +27,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -36,16 +37,22 @@ public class TransactionController {
 
     private final TransactionService transactionService;
     private final TransactionLimitService transactionLimitService;
+    private final com.uit.transactionservice.client.UserServiceClient userServiceClient;
 
     /**
      * Create a new transfer transaction (with OTP)
      * POST /transactions/transfers
+     *
+     * @param request The transfer request containing sender, receiver, and amount
+     * @param jwt JWT token containing user identity and phoneNumber (automatically injected by Spring Security)
+     * @return TransactionResponse with transaction details and PENDING_OTP status
      */
     @PostMapping("/transfers")
     public ResponseEntity<ApiResponse<TransactionResponse>> createTransfer(
             @Valid @RequestBody CreateTransferRequest request,
             @AuthenticationPrincipal Jwt jwt) {
 
+        // Security: Require valid JWT (defense-in-depth, Kong also validates)
         if (jwt == null) {
             throw new com.uit.sharedkernel.exception.AppException(
                 com.uit.sharedkernel.exception.ErrorCode.UNAUTHORIZED, 
@@ -53,17 +60,52 @@ public class TransactionController {
             );
         }
 
-        String userId = jwt.getSubject();
-        String phoneNumber = jwt.getClaimAsString("phoneNumber");
-        
-        log.info("User ID from JWT: {}", userId);
-        log.info("Phone number: {}", phoneNumber);
+        try {
+            // Extract userId and phoneNumber from JWT token using utility
+            String userId = JwtUtils.getUserId(jwt);
+//             @SuppressWarnings("unchecked")
+//             Map<String, Object> userInfo = (Map<String, Object>) httpRequest.getAttribute("userInfo");
+//             String userId = "test-user"; // Default for testing
+//             String phoneNumber = "+84857311444"; // Default for testing
+            
+            log.info("Creating transfer for user: {}", userId);
+            
+            // TROUBLESHOOTING: Log all JWT claims to see what's available
+            var allClaims = JwtUtils.getAllClaims(jwt);
+            log.info("=== JWT CLAIMS TROUBLESHOOTING ===");
+            log.info("Available claims: {}", allClaims.keySet());
+            log.info("phone_number claim (underscore): {}", allClaims.get("phone_number"));
+            log.info("phoneNumber claim (camelCase): {}", allClaims.get("phoneNumber"));
+            log.info("===================================");
+            
+            String phoneNumber = JwtUtils.getPhoneNumber(jwt);
+            log.info("JwtUtils.getPhoneNumber() returned: {}", phoneNumber);
 
-        TransactionResponse response = transactionService.createTransfer(request, userId, phoneNumber);
-        
-        log.info("Transfer created successfully: {}", response.getTransactionId());
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(response));
+            // Fallback: If phoneNumber not in token, fetch from user-service (backward compatibility)
+            if (phoneNumber == null || phoneNumber.isEmpty()) {
+                log.warn("phoneNumber not found in JWT token for user {}. Falling back to user-service API.", userId);
+                phoneNumber = userServiceClient.getPhoneNumberByUserId(userId);
+            } else {
+                log.info("✅ phoneNumber extracted from JWT token: {}", maskPhoneNumber(phoneNumber));
+            }
+            
+            log.info("Phone number retrieved for user {}: {}", userId, maskPhoneNumber(phoneNumber));
+
+            TransactionResponse response = transactionService.createTransfer(request, userId, phoneNumber);
+
+            log.info("Transfer created successfully: {}", response.getTransactionId());
+            return ResponseEntity.status(HttpStatus.CREATED)
+                   .body(ApiResponse.success(response));
+
+        } catch (Exception e) {
+            log.error("=== CREATE TRANSFER FAILED ===", e);
+            log.error("Error type: {}", e.getClass().getName());
+            log.error("Error message: {}", e.getMessage());
+            if (e.getCause() != null) {
+                log.error("Caused by: {}", e.getCause().getMessage());
+            }
+            throw e;
+        }
     }
 
     /**
@@ -172,6 +214,29 @@ public class TransactionController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    /**
+     * Mask phone number for logging (show only last 4 digits)
+     * Example: +84384929107 -> +84******9107
+     */
+    private String maskPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.length() <= 4) {
+            return "****";
+        }
+        int visibleDigits = 4;
+        int maskLength = phoneNumber.length() - visibleDigits - 3; // -3 for country code
+        String countryCode = phoneNumber.substring(0, 3);
+        String lastDigits = phoneNumber.substring(phoneNumber.length() - visibleDigits);
+        return countryCode + "*".repeat(Math.max(0, maskLength)) + lastDigits;
+    }
+    
+    @PostMapping("/internal/face-auth-success")
+    public ResponseEntity<ApiResponse<Void>> confirmFaceAuth(
+            @RequestBody ConfirmFaceAuthRequest request) {
+        
+        transactionService.confirmFaceAuth(request);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
     // ========================================================================
     // BIOMETRIC VERIFICATION ENDPOINTS (Vietnamese e-banking style)
     // ========================================================================
@@ -189,7 +254,6 @@ public class TransactionController {
      * POST /transactions/verify-device
      */
     @PostMapping("/verify-device")
-    // @RequireRole("user")
     public ResponseEntity<ApiResponse<TransactionResponse>> verifyDeviceSignature(
             @Valid @RequestBody VerifyDeviceSignatureRequest request) {
         
@@ -223,7 +287,6 @@ public class TransactionController {
      * POST /transactions/verify-face
      */
     @PostMapping("/verify-face")
-    // @RequireRole("user")
     public ResponseEntity<ApiResponse<TransactionResponse>> verifyFace(
             @Valid @RequestBody VerifyFaceRequest request,
             @RequestParam(defaultValue = "true") boolean faceVerified) {

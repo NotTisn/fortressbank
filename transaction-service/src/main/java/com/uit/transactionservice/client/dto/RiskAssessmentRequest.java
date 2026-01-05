@@ -7,16 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 
-/**
- * Request payload for risk-engine risk assessment.
- */
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class RiskAssessmentRequest {
-    private String userId;
     private BigDecimal amount;
+    private String userId;
+    private String payeeId;
     private String deviceFingerprint;
     private String ipAddress;
     private String location;

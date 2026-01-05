@@ -1,176 +1,95 @@
 package com.uit.transactionservice.client;
 
-import com.uit.transactionservice.client.dto.*;
+import com.uit.sharedkernel.api.ApiResponse;
+import com.uit.sharedkernel.exception.AppException;
+import com.uit.sharedkernel.exception.ErrorCode;
+import com.uit.transactionservice.client.dto.UserResponse;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
-
-import java.time.Duration;
 
 /**
- * Client for calling user-service Smart OTP verification.
- * Used for biometric verification on medium/high-risk transactions.
- * 
- * Vietnamese e-banking style:
- * - MEDIUM risk → DEVICE_BIO (fingerprint/PIN unlocks device key to sign challenge)
- * - HIGH risk → FACE_VERIFY (face re-verification via AI service)
+ * Client for synchronous communication with User Service
+ * Handles fetching user information including phone numbers for OTP delivery
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class UserServiceClient {
 
-    private final WebClient.Builder webClientBuilder;
-
-    @Value("${services.user-service.url:http://localhost:4000}")
-    private String userServiceUrl;
-
-    private static final Duration TIMEOUT = Duration.ofSeconds(15);
-
-    // ========================================================================
-    // SMART OTP METHODS (New Vietnamese-style biometric verification)
-    // ========================================================================
+    private final UserServiceFeignClient userServiceFeignClient;
 
     /**
-     * Generate a Smart OTP challenge for the user.
-     * 
-     * @param userId User ID
-     * @param transactionId Transaction ID (for audit)
-     * @param challengeType DEVICE_BIO or FACE_VERIFY
-     * @return Challenge response with challengeId and data to sign
+     * Get user information by userId
+     * @param userId The user ID
+     * @return UserResponse containing user details including phoneNumber
+     * @throws AppException if user not found or service unavailable
      */
-    public SmartOtpChallengeResponse generateChallenge(String userId, String transactionId, String challengeType) {
-        log.info("Generating Smart OTP challenge for userId: {} transactionId: {} type: {}", 
-                userId, transactionId, challengeType);
-
-        SmartOtpChallengeRequest request = SmartOtpChallengeRequest.builder()
-                .userId(userId)
-                .transactionId(transactionId)
-                .challengeType(challengeType)
-                .build();
+    public UserResponse getUserById(String userId) {
+        log.info("Fetching user information for userId: {}", userId);
 
         try {
-            SmartOtpChallengeResponse response = webClientBuilder.build()
-                    .post()
-                    .uri(userServiceUrl + "/smart-otp/internal/challenge")
-                    .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(SmartOtpChallengeResponse.class)
-                    .block(TIMEOUT);
+            ApiResponse<UserResponse> response = userServiceFeignClient.getUserById(userId);
 
-            if (response != null) {
-                log.info("Challenge generated: challengeId={} type={}", 
-                        response.getChallengeId(), response.getChallengeType());
-                return response;
+            if (response != null && response.getData() != null) {
+                UserResponse userResponse = response.getData();
+                log.info("Successfully fetched user information - UserId: {}, PhoneNumber: {}",
+                        userId, maskPhoneNumber(userResponse.phoneNumber()));
+                return userResponse;
             }
 
-            log.error("Null response from user-service challenge generation");
-            return null;
+            log.error("User not found or empty response for userId: {}", userId);
+            throw new AppException(ErrorCode.USER_NOT_FOUND, "User not found: " + userId);
+
+        } catch (FeignException.NotFound e) {
+            log.error("User not found: {}", userId);
+            throw new AppException(ErrorCode.USER_NOT_FOUND, "User not found: " + userId);
+
+        } catch (FeignException.ServiceUnavailable e) {
+            log.error("User service is unavailable: {}", e.getMessage());
+            throw new AppException(ErrorCode.SERVICE_UNAVAILABLE, "User service is temporarily unavailable");
+
+        } catch (FeignException e) {
+            log.error("Feign error while fetching user {}: {} - {}", userId, e.status(), e.getMessage());
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to fetch user information: " + e.getMessage());
 
         } catch (Exception e) {
-            log.error("Failed to generate Smart OTP challenge: {}", e.getMessage());
-            return null;
+            log.error("Unexpected error while fetching user information", e);
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Unexpected error: " + e.getMessage());
         }
     }
 
     /**
-     * Verify device signature for DEVICE_BIO challenge.
-     * 
-     * @param challengeId Challenge ID from generateChallenge
-     * @param deviceId Device that signed the challenge
-     * @param signatureBase64 Base64-encoded signature
-     * @return Verification result
+     * Get phone number for a specific user
+     * @param userId The user ID
+     * @return Phone number string
+     * @throws AppException if user not found, phone number is null, or service unavailable
      */
-    public SmartOtpVerifyResponse verifyDeviceSignature(String challengeId, String deviceId, String signatureBase64) {
-        log.info("Verifying device signature for challengeId: {} deviceId: {}", challengeId, deviceId);
+    public String getPhoneNumberByUserId(String userId) {
+        UserResponse user = getUserById(userId);
 
-        SmartOtpVerifyDeviceRequest request = SmartOtpVerifyDeviceRequest.builder()
-                .challengeId(challengeId)
-                .deviceId(deviceId)
-                .signatureBase64(signatureBase64)
-                .build();
-
-        try {
-            SmartOtpVerifyResponse response = webClientBuilder.build()
-                    .post()
-                    .uri(userServiceUrl + "/smart-otp/internal/verify-device")
-                    .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(SmartOtpVerifyResponse.class)
-                    .block(TIMEOUT);
-
-            if (response != null) {
-                log.info("Device verification result: valid={}", response.isValid());
-                return response;
-            }
-
-            log.error("Null response from user-service device verification");
-            return SmartOtpVerifyResponse.builder()
-                    .valid(false)
-                    .message("Smart OTP service unavailable")
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Failed to verify device signature: {}", e.getMessage());
-            return SmartOtpVerifyResponse.builder()
-                    .valid(false)
-                    .message("Device verification failed: " + e.getMessage())
-                    .build();
+        if (user.phoneNumber() == null || user.phoneNumber().isEmpty()) {
+            log.error("Phone number not found for user: {}", userId);
+            throw new AppException(ErrorCode.PHONE_NUMBER_NOT_FOUND,
+                    "Phone number not registered for user: " + userId);
         }
+
+        return user.phoneNumber();
     }
 
     /**
-     * Get Smart OTP status for a user (what verification methods are available).
-     * 
-     * @param userId User to check
-     * @return Status with hasDevice and hasFace flags
+     * Mask phone number for logging (show only last 4 digits)
+     * Example: +84384929107 -> +84******9107
      */
-    public SmartOtpStatusResponse getSmartOtpStatus(String userId) {
-        log.info("Checking Smart OTP status for userId: {}", userId);
-
-        try {
-            SmartOtpStatusResponse response = webClientBuilder.build()
-                    .get()
-                    .uri(userServiceUrl + "/smart-otp/internal/status/" + userId)
-                    .retrieve()
-                    .bodyToMono(SmartOtpStatusResponse.class)
-                    .block(TIMEOUT);
-
-            if (response != null) {
-                log.info("Smart OTP status for userId: {} - hasDevice={} hasFace={}", 
-                        userId, response.isHasDevice(), response.isHasFace());
-                return response;
-            }
-
-            return SmartOtpStatusResponse.builder()
-                    .hasDevice(false)
-                    .hasFace(false)
-                    .deviceCount(0)
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Failed to check Smart OTP status: {}", e.getMessage());
-            return SmartOtpStatusResponse.builder()
-                    .hasDevice(false)
-                    .hasFace(false)
-                    .deviceCount(0)
-                    .build();
+    private String maskPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.length() <= 4) {
+            return "****";
         }
-    }
-
-    /**
-     * Check if user has any Smart OTP verification method available.
-     * Used to determine if SMART_OTP challenge can be issued.
-     * 
-     * @param userId User to check
-     * @return true if user has at least device registered
-     */
-    public boolean isSmartOtpCapable(String userId) {
-        SmartOtpStatusResponse status = getSmartOtpStatus(userId);
-        // User can use Smart OTP if they have a registered device
-        // Face is optional fallback for HIGH risk
-        return status.isHasDevice();
+        int visibleDigits = 4;
+        int maskLength = phoneNumber.length() - visibleDigits - 3; // -3 for country code
+        String countryCode = phoneNumber.substring(0, 3);
+        String lastDigits = phoneNumber.substring(phoneNumber.length() - visibleDigits);
+        return countryCode + "*".repeat(Math.max(0, maskLength)) + lastDigits;
     }
 }

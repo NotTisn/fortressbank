@@ -8,10 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Client to fetch user risk profile data from user-service.
- * This provides known devices, locations, and transaction history for fraud detection.
- */
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -19,10 +16,6 @@ public class UserRiskProfileClient {
 
     private final WebClient.Builder webClientBuilder;
 
-    /**
-     * Fetch user risk profile with known devices and locations.
-     * Returns null if service is unavailable (fail-safe approach).
-     */
     @SuppressWarnings("unchecked")
     public UserRiskProfileData getUserRiskProfile(String userId) {
         try {

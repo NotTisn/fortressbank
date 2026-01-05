@@ -16,7 +16,7 @@ public class ValidateRegistrationRequest {
     private String email;
 
     @NotBlank(message = "PHONE_NUMBER_REQUIRED")
-    @Pattern(regexp = "^[0-9]{10,11}$", message = "PHONE_NUMBER_INVALID_FORMAT")
+    @Pattern(regexp = "^\\+84[0-9]{9,10}$", message = "PHONE_NUMBER_INVALID_FORMAT")
     private String phoneNumber;
 
     @NotBlank(message = "CITIZEN_ID_REQUIRED")

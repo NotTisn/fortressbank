@@ -245,6 +245,22 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success(Map.of("valid", isValid)));
     }
 
+    // POST /accounts/transfers
+    // Initiate transfer with ownership validation
+    @PostMapping("/transfers")
+    @RequireRole("user")
+    public ResponseEntity<ApiResponse<Map<String, String>>> initiateTransfer(
+            @Valid @RequestBody TransferRequest request) {
+        // Validate ownership of sender account
+        String userId = getCurrentUserId();
+        accountService.initiateTransferWithOwnershipCheck(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
+            "message", "Transfer initiated successfully",
+            "fromAccountId", request.getSenderAccountId(),
+            "toAccountId", request.getReceiverAccountId()
+        )));
+    }
+
     // ==================== PUBLIC ENDPOINTS (LIMITED ACCESS) ====================
 
     /**

@@ -3,6 +3,7 @@ package com.uit.transactionservice.entity;
 public enum TransactionStatus {
     PENDING_OTP,        // Đang chờ xác thực SMS OTP
     PENDING_SMART_OTP,  // Đang chờ xác thực Smart OTP (TOTP)
+    PENDING_FACE_AUTH,  // Đang chờ xác thực khuôn mặt (FaceID)
     PENDING,            // Đang chờ xử lý (sau khi OTP verified)
     PROCESSING,         // Đang xử lý
     SUCCESS,            // Thành công (hoàn thành)

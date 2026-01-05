@@ -51,6 +51,9 @@ services:
   account-service:
     url: ${ACCOUNT_SERVICE_URL:http://localhost:4001}
     timeout: 5000 # 5 seconds timeout for sync calls
+  risk-engine:
+    url: ${RISK_ENGINE_URL:http://risk-engine:6000}
+    timeout: 5000
 
 eureka:
   client:
