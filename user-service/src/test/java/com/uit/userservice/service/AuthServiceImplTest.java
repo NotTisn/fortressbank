@@ -428,7 +428,7 @@ class AuthServiceImplTest {
     @DisplayName("login() should return token successfully")
     void testLogin_Success() {
         // Given
-        LoginRequest request = new LoginRequest("johndoe", "password123");
+        LoginRequest request = new LoginRequest("johndoe", "password123", "test-device");
         TokenResponse expectedToken = new TokenResponse(
                 "access-token",
                 "refresh-token",
