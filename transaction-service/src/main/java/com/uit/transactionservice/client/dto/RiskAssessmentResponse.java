@@ -8,4 +8,5 @@ import lombok.NoArgsConstructor;
 public class RiskAssessmentResponse {
     private String riskLevel;
     private String challengeType;
+    private Integer riskScore;
 }

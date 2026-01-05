@@ -267,7 +267,7 @@ public class SmartOtpService {
 
         // Delegate to FaceIdService
         try {
-            faceIdService.verifyFace(userId, faceImages);
+            faceIdService.verifyFace(userId, faceImages, transactionId);
             
             // Delete challenge (one-time use)
             redisTemplate.delete(redisKey);

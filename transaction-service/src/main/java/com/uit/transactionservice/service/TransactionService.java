@@ -1435,6 +1435,48 @@ public class TransactionService {
                 .build();
         auditEventPublisher.publishAuditEvent(auditEvent);
     }
-    
+
+    /**
+     * Confirm face authentication for a transaction.
+     * Called after user completes face verification in mobile app.
+     * 
+     * @param request Contains transactionId and phoneNumber
+     */
+    @Transactional
+    public void confirmFaceAuth(com.uit.transactionservice.dto.request.ConfirmFaceAuthRequest request) {
+        log.info("Confirming face authentication for transaction: {}", request.getTransactionId());
+        
+        Transaction transaction = transactionRepository.findById(request.getTransactionId())
+                .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND, 
+                        "Transaction not found: " + request.getTransactionId()));
+        
+        // Validate transaction is in correct state
+        if (transaction.getStatus() != TransactionStatus.PENDING_SMART_OTP) {
+            throw new AppException(ErrorCode.TRANSACTION_STATUS_CONFLICT,
+                    "Transaction is not pending face authentication. Current status: " + transaction.getStatus());
+        }
+        
+        // TODO: Optionally verify face auth was actually completed via fbank-ai service
+        // For MVP, we trust the frontend to only call this after successful face verification
+        log.info("Face authentication confirmed for transaction: {}", request.getTransactionId());
+        
+        // Update status and execute the transfer
+        transaction.setStatus(TransactionStatus.PENDING);
+        transaction.setCurrentStep(SagaStep.OTP_VERIFIED);
+        transactionRepository.save(transaction);
+        
+        // Execute the transfer
+        try {
+            if (transaction.getTransactionType() == TransactionType.INTERNAL_TRANSFER) {
+                processInternalTransfer(transaction);
+            } else if (transaction.getTransactionType() == TransactionType.EXTERNAL_TRANSFER) {
+                processExternalTransfer(transaction);
+            }
+        } catch (Exception e) {
+            log.error("Transfer execution failed after face auth - TxID: {}", 
+                    transaction.getTransactionId(), e);
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Transfer failed: " + e.getMessage());
+        }
+    }
 
 }

@@ -2,7 +2,6 @@ package com.uit.transactionservice.client;
 
 import com.uit.transactionservice.client.dto.RiskAssessmentRequest;
 import com.uit.transactionservice.client.dto.RiskAssessmentResponse;
-<<<<<<< HEAD
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -88,15 +87,4 @@ public class RiskEngineClient {
         response.setChallengeType(challengeType);
         return response;
     }
-=======
-import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-
-@FeignClient(name = "risk-engine", url = "${services.risk-engine.url:http://localhost:6000}")
-public interface RiskEngineClient {
-
-    @PostMapping("/assess")
-    RiskAssessmentResponse assessRisk(@RequestBody RiskAssessmentRequest request);
->>>>>>> origin/main
 }
