@@ -29,6 +29,7 @@ risk-engine/target/
 user-service/target/
 keycloak-extensions/target/
 audit-service/target/
+backup-service/target/
 
 # IntelliJ IDEA files
 .idea/
