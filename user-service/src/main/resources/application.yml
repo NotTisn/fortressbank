@@ -21,8 +21,8 @@ spring:
 keycloak:
   auth-server-url: http://keycloak:8080
   realm: fortressbank-realm
-  client-id: kong
-  client-secret: pmFStZwGO8sb0mBDkZmP5niE3wmEELqe
+  clientId: kong
+  clientSecret: XLODsjH5G3f9iqGftbrkdHeNw3NVfNdZ
 
 # Default configuration for AI Service
 fortress-bank:

@@ -3,7 +3,7 @@ local cjson = require "cjson.safe"
 local http = require "resty.http"
 
 local SingleDeviceHandler = {
-  PRIORITY = 900,
+  PRIORITY = 100,  -- Run AFTER openid-connect (priority 1000) to ensure token is validated first
   VERSION = "1.0.0",
 }
 
@@ -97,18 +97,39 @@ function SingleDeviceHandler:access(conf)
 
   local user_id = payload.sub
   local token_device_id = payload.deviceId
-  if not user_id or not token_device_id then
+  
+  -- Log for debugging
+  kong.log.debug("single-device: user_id=", user_id, ", token_device_id=", token_device_id)
+  
+  if not user_id then
+    kong.log.err("single-device: JWT missing 'sub' claim")
     return kong.response.exit(401, {
       error = "invalid_token",
-      error_description = "Token missing required claims for single-device validation",
+      error_description = "Token missing required 'sub' claim for single-device validation",
     })
+  end
+  
+  if not token_device_id then
+    kong.log.warn("single-device: JWT missing 'deviceId' claim - single-device enforcement disabled for this request")
+    -- If deviceId is not in token, skip validation (allows backward compatibility)
+    -- This should not happen if Keycloak protocol mapper is configured correctly
+    return
   end
 
   local header_device_id = kong.request.get_header("x-device-id")
-  if not header_device_id or header_device_id ~= token_device_id then
+  if not header_device_id then
+    kong.log.err("single-device: Missing X-Device-Id header in request")
     return kong.response.exit(401, {
       error = "device_mismatch",
-      error_description = "Request device does not match token device",
+      error_description = "X-Device-Id header is required for single-device validation",
+    })
+  end
+  
+  if header_device_id ~= token_device_id then
+    kong.log.warn("single-device: Device mismatch - header=", header_device_id, ", token=", token_device_id)
+    return kong.response.exit(401, {
+      error = "device_mismatch",
+      error_description = "Request device does not match token device. Please log in again.",
     })
   end
 
