@@ -68,7 +68,46 @@ This security testing suite covers both **offensive** (penetration testing) and 
 - OWASP A04:2021 (Insecure Design) - Challenge replay, expiry
 - OWASP A07:2021 (Authentication Failures) - Biometric bypass
 
-### 8. Master Test Runner (✅ Complete)
+### 8. Session Security Tests (✅ Complete - January 2026)
+- `7-session-attacks/run-session-tests.ps1` - Test runner for all session tests
+- `7-session-attacks/test-01-concurrent-sessions.ps1` - Test concurrent session abuse
+- `7-session-attacks/test-02-token-theft.ps1` - Test token theft impact scenarios
+- `7-session-attacks/test-03-refresh-token-abuse.ps1` - Test refresh token security
+
+**Coverage:** 3 attack vectors covering:
+- OWASP A07:2021 (Authentication Failures) - Session management
+- Token lifecycle, rotation, and revocation security
+
+### 9. Timing Attack Tests (✅ Complete - January 2026)
+- `8-timing-attacks/run-timing-tests.ps1` - Test runner for timing tests
+- `8-timing-attacks/test-01-account-enumeration.ps1` - Timing-based account discovery
+- `8-timing-attacks/test-02-password-reset-enum.ps1` - Password reset user enumeration
+
+**Coverage:** 2 attack vectors covering:
+- OWASP A01:2021 (Broken Access Control) - User enumeration via timing
+- Constant-time comparison verification
+
+### 10. Business Logic Tests (✅ Complete - January 2026)
+- `9-business-logic/run-business-tests.ps1` - Test runner for business logic tests
+- `9-business-logic/test-01-double-spend.ps1` - Race condition double-spending
+- `9-business-logic/test-02-state-machine-abuse.ps1` - Transaction state manipulation
+- `9-business-logic/test-03-fee-manipulation.ps1` - Fee calculation exploits
+
+**Coverage:** 3 attack vectors covering:
+- OWASP A04:2021 (Insecure Design) - Business logic flaws
+- Race conditions, state machines, financial calculations
+
+### 11. Cryptographic Attack Tests (✅ Complete - January 2026)
+- `10-crypto-attacks/run-crypto-tests.ps1` - Test runner for crypto tests
+- `10-crypto-attacks/test-01-weak-keys.ps1` - Weak key detection and rejection
+- `10-crypto-attacks/test-02-algorithm-confusion.ps1` - Algorithm downgrade attacks
+- `10-crypto-attacks/test-03-entropy-analysis.ps1` - Challenge randomness analysis
+
+**Coverage:** 3 attack vectors covering:
+- OWASP A02:2021 (Cryptographic Failures) - Key and algorithm security
+- Entropy, randomness, and key validation
+
+### 12. Master Test Runner (✅ Complete)
 - `run-all-tests.sh` - Automated execution of entire test suite
   - Color-coded output (pass/fail/skip)
   - Prerequisite validation
@@ -176,18 +215,20 @@ cd 5-api-gateway && ./header-injection-test.sh && cd ..
 
 ## What's Been Built
 
-### Total Files Created: 24
+### Total Files Created: 42
 - 6 documentation files (5 READMEs + EXPLAIN-LIKE-IM-FIVE.md)
 - 2 utility scripts (jwt-tool.py + keycloak-auth.sh)
-- 16 penetration test scripts
+- 32 penetration test scripts
+- 5 category test runners (PowerShell)
 - 1 master test runner (run-all-tests.sh)
 
-### Lines of Code: ~5,800+
+### Lines of Code: ~8,500+
 - Python: ~400 lines (jwt-tool.py)
 - Bash: ~5,100 lines (test scripts + runner)
-- Markdown: ~1,800 lines (documentation + guide)
+- PowerShell: ~2,500 lines (new test categories)
+- Markdown: ~2,000 lines (documentation + guide)
 
-### Attack Vectors Covered: 16
+### Attack Vectors Covered: 32
 1. JWT 'none' algorithm bypass
 2. Token replay after logout
 3. Expired token validation
@@ -204,6 +245,22 @@ cd 5-api-gateway && ./header-injection-test.sh && cd ..
 14. HTTP header manipulation
 15. Rate limiting bypass
 16. Backend network segmentation
+17. Smart OTP challenge replay
+18. Device ownership IDOR
+19. Signature forgery
+20. Challenge expiry bypass
+21. Face verification bypass
+22. Concurrent session abuse
+23. Token theft exploitation
+24. Refresh token abuse
+25. Timing-based account enumeration
+26. Password reset enumeration
+27. Race condition double-spending
+28. State machine abuse
+29. Fee manipulation
+30. Weak cryptographic keys
+31. Algorithm confusion attacks
+32. Entropy/randomness analysis
 
 ---
 
@@ -239,7 +296,12 @@ cd 5-api-gateway && ./header-injection-test.sh && cd ..
 | Fraud Evasion | 3 | ✅ Ready to run |
 | Input Validation | 3 | ✅ Ready to run |
 | API Gateway | 3 | ✅ Ready to run |
-| **TOTAL** | **16** | **✅ COMPLETE** |
+| Smart OTP | 5 | ✅ Ready to run |
+| Session Attacks | 3 | ✅ Ready to run |
+| Timing Attacks | 2 | ✅ Ready to run |
+| Business Logic | 3 | ✅ Ready to run |
+| Crypto Attacks | 3 | ✅ Ready to run |
+| **TOTAL** | **32** | **✅ COMPLETE** |
 
 **To execute tests:** Run `./run-all-tests.sh` from `security-tests/` directory
 
