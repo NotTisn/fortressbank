@@ -1,9 +1,16 @@
 spring:
+  application:
+    name: transaction-service-test
+
+  config:
+    import: optional:file:.env[.properties]
+
+  main:
+    allow-bean-definition-overriding: true
+
   datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: create-drop
@@ -34,7 +41,73 @@ spring:
 stripe:
   api-key: sk_test_mock_key_for_testing
   webhook-secret: whsec_test_mock_secret_for_testing
+      ddl-auto: validate
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  sql:
+    init:
+      mode: never
+
+  data:
+    redis:
+      # Will be set dynamically by Testcontainers
+      host: localhost
+      port: 6379
+
+  rabbitmq:
+    # Will be set dynamically by Testcontainers
+    host: localhost
+    port: 5672
+
+  cloud:
+    config:
+      enabled: false
+
+eureka:
+  client:
+    enabled: false
+
+# Mock services
+services:
+  account-service:
+    url: http://localhost:4001
+    timeout: 5000
+
+jwt:
+  issuer-uri: http://localhost:8888/realms/fortressbank-realm
+
+stripe:
+  api-key: sk_test_mock_key
+  webhook-secret: whsec_mock_secret
+  connect-account-id: acct_mock_connect
+  payout:
+    timeout-seconds: 30
+    currency: usd
+    retry:
+      max-attempts: 3
+      backoff-delay-ms: 1000
+
+resilience4j:
+  retry:
+    instances:
+      stripePayout:
+        maxAttempts: 3
+        waitDuration: 1s
+  circuitbreaker:
+    instances:
+      stripePayout:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
 
 logging:
   level:
+    root: WARN
     com.uit.transactionservice: DEBUG
+    org.springframework.security: WARN
+    org.testcontainers: INFO
+    com.github.dockerjava: WARN

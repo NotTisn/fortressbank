@@ -1,0 +1,47 @@
+name: Account Service CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'account-service/**'
+      - 'shared-kernel/**'
+      - 'pom.xml'
+      - '.github/workflows/account-service.yml'
+  pull_request:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'account-service/**'
+      - 'shared-kernel/**'
+      - 'pom.xml'
+
+jobs:
+  test:
+    name: Account Service Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Make mvnw executable
+        run: chmod +x account-service/mvnw
+
+      # Bước 1: Cài đặt Parent POM
+      - name: Install Parent POM
+        run: ./account-service/mvnw install -N -DskipTests -f pom.xml
+
+      # Bước 2: Cài đặt Shared Kernel
+      - name: Install Shared Kernel
+        run: ./account-service/mvnw install -DskipTests -f shared-kernel/pom.xml
+
+      # Bước 3: Test Account Service
+      - name: Run Account Service Tests
+        run: ./account-service/mvnw clean test jacoco:report -f account-service/pom.xml

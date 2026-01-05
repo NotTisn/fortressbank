@@ -53,11 +53,48 @@ public class KeycloakClient {
     // =============== TOKEN FLOWS ===============
 
     public TokenResponse loginWithPassword(String username, String password) {
-        return callTokenEndpoint(Map.of(
-                "grant_type", "password",
-                "username", username,
-                "password", password
-        ));
+        return loginWithPassword(username, password, null);
+    }
+
+    public TokenResponse loginWithPassword(String username, String password, String deviceId) {
+        String url = tokenEndpoint();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        
+        // Pass deviceId to Keycloak via X-Device-Id header
+        // Keycloak's SingleDeviceAuthenticator checks both form parameter and header
+        if (deviceId != null && !deviceId.isBlank()) {
+            headers.add("X-Device-Id", deviceId);
+        }
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "password");
+        form.add("username", username);
+        form.add("password", password);
+        form.add("client_id", properties.getClientId());
+        form.add("client_secret", properties.getClientSecret());
+        form.add("scope", "openid");
+        
+        // Also add deviceId as form parameter (Keycloak checks both)
+        if (deviceId != null && !deviceId.isBlank()) {
+            form.add("deviceId", deviceId);
+        }
+
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(form, headers);
+
+        try {
+            ResponseEntity<TokenResponse> response =
+                    restTemplate.postForEntity(url, entity, TokenResponse.class);
+
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                throw new AppException(ErrorCode.USER_CREATION_FAILED, "Keycloak token request failed");
+            }
+            return response.getBody();
+        } catch (HttpStatusCodeException ex) {
+            log.error("Keycloak token error: {}", ex.getResponseBodyAsString());
+            throw new AppException(ErrorCode.FORBIDDEN, "Authentication failed");
+        }
     }
 
     public TokenResponse refreshToken(String refreshToken) {
@@ -144,7 +181,18 @@ public class KeycloakClient {
 
     // =============== ADMIN USER APIS ===============
 
-    public String createUser(String username, String email, String fullName, String password) {
+    /**
+     * Create user in Keycloak with phone number attribute.
+     * Phone number will be stored in user attributes and can be mapped to JWT token.
+     * 
+     * @param username Username for login
+     * @param email User's email
+     * @param fullName Full name of user
+     * @param password User's password
+     * @param phoneNumber User's phone number (will be added to JWT token)
+     * @return Keycloak user ID
+     */
+    public String createUser(String username, String email, String fullName, String password, String phoneNumber) {
         String adminToken = getAdminAccessToken();
 
         String url = usersEndpoint();
@@ -153,12 +201,18 @@ public class KeycloakClient {
         headers.setBearerAuth(adminToken);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
+        // Build user attributes with phoneNumber
+        Map<String, Object> attributes = Map.of(
+                "phoneNumber", List.of(phoneNumber) // Keycloak attributes are arrays
+        );
+
         Map<String, Object> body = Map.of(
                 "username", username,
                 "email", email,
                 "enabled", true,
                 "emailVerified", false,
                 "firstName", fullName, // đơn giản dùng fullName làm firstName
+                "attributes", attributes, // Add custom attributes
                 "credentials", new Object[]{
                         Map.of(
                                 "type", "password",
@@ -184,11 +238,21 @@ public class KeycloakClient {
 
             URI uri = URI.create(location);
             String path = uri.getPath();
-            return path.substring(path.lastIndexOf('/') + 1);
+            String userId = path.substring(path.lastIndexOf('/') + 1);
+            
+            log.info("User created in Keycloak: {} with phoneNumber: {}", userId, phoneNumber);
+            return userId;
         } catch (HttpStatusCodeException ex) {
             log.error("Keycloak create user error: {}", ex.getResponseBodyAsString());
             throw new AppException(ErrorCode.USER_CREATION_FAILED);
         }
+    }
+
+    /**
+     * Legacy method for backward compatibility (without phoneNumber)
+     */
+    public String createUser(String username, String email, String fullName, String password) {
+        return createUser(username, email, fullName, password, null);
     }
 
     public void resetPassword(String userId, String newPassword) {
