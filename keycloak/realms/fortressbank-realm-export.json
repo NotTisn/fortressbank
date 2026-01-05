@@ -698,14 +698,15 @@
       "id" : "f4f97e6a-7f91-4e4b-9b1f-111111111111",
       "name" : "Device ID",
       "protocol" : "openid-connect",
-      "protocolMapper" : "device-id-protocol-mapper",
+      "protocolMapper" : "oidc-usersessionmodel-note-mapper",
       "consentRequired" : false,
       "config" : {
+        "user.session.note" : "deviceId",
+        "userinfo.token.claim" : "false",
         "id.token.claim" : "true",
         "access.token.claim" : "true",
         "claim.name" : "deviceId",
-        "jsonType.label" : "String",
-        "userinfo.token.claim" : "false"
+        "jsonType.label" : "String"
       }
     }, {
       "id" : "58a2524f-093d-418f-82b5-576c4896cf5e",
@@ -1780,6 +1781,14 @@
       "authenticatorFlow" : false,
       "requirement" : "REQUIRED",
       "priority" : 20,
+      "autheticatorFlow" : false,
+      "userSetupAllowed" : false
+    }, {
+      "authenticatorConfig" : "single-device-authenticator-config",
+      "authenticator" : "single-device-authenticator",
+      "authenticatorFlow" : false,
+      "requirement" : "REQUIRED",
+      "priority" : 25,
       "autheticatorFlow" : false,
       "userSetupAllowed" : false
     }, {

@@ -107,27 +107,44 @@ plugins:
   # Single-device enforcement plugin (validates deviceId against Keycloak)
   # This plugin validates that the deviceId in the JWT token matches the X-Device-Id header
   # and that the device has an active session in Keycloak
+  #
+  # IMPORTANT: Frontend MUST send X-Device-Id header on ALL authenticated requests
+  # The deviceId should be stored in localStorage/sessionStorage after login and sent with every API call
   # - name: single-device
-  #   route: user-main-route
   #   config:
   #     keycloak_url: "http://keycloak:8080"
   #     realm: "fortressbank-realm"
-  #     #  cd kong
-  #     #  ./get-keycloak-admin-token.sh
+  #     client_id: "kong"
+  #     client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+
+  # - name: single-device
+  #   route: account-service-route
+  #   config:
+  #     keycloak_url: "http://keycloak:8080"
+  #     realm: "fortressbank-realm"
   #     admin_token: "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJyU0FtOGszLUJpa0xsel9TSDNhMDZVZTF2SFFqTHZGZmhwbWt3MXpncjJvIn0.eyJleHAiOjE3Njc1MjI3OTQsImlhdCI6MTc2NzUyMjQ5NCwianRpIjoiZjhhNmIxNzUtZDRmMC00NDIzLWJkNzItNDI0NDlhOWM2NGIxIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4ODg4L3JlYWxtcy9mb3J0cmVzc2JhbmstcmVhbG0iLCJhdWQiOlsicmVhbG0tbWFuYWdlbWVudCIsImFjY291bnQiXSwic3ViIjoiZWUzMmJiZmYtNzRkNi00M2U0LTgwYzUtMzhmZmVhZDNkZGE0IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiYmFja2VuZC1zZXJ2aWNlIiwiYWNyIjoiMSIsInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtZm9ydHJlc3NiYW5rLXJlYWxtIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJyZWFsbS1tYW5hZ2VtZW50Ijp7InJvbGVzIjpbInF1ZXJ5LXVzZXJzIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6InByb2ZpbGUgZW1haWwiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImNsaWVudElkIjoiYmFja2VuZC1zZXJ2aWNlIiwiY2xpZW50SG9zdCI6IjE3Mi4xOC4wLjEiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtYmFja2VuZC1zZXJ2aWNlIiwiY2xpZW50QWRkcmVzcyI6IjE3Mi4xOC4wLjEifQ.N0ADCSv_kP1VWQZmNscv2KLthsJB_DjA4NowBLeIViLD6Q2gYhfSWYZfiwdqEIeustKPmkHTnsepeCoFbhiGPZA0HJQq8nqtpJuG_h4UGUBLvXHxB06p5HRNX68Ihtkh5SvPEKJm6-wl3mz8ej8EMFLjfa7K-Bxv_aGnYT0pjBVVf8MzOUqGhkyCxzuCL_EeUn3AoDuvQQSYlr-_DBaWjM-BnYXYSr61nt9zv7MtnWvVHavXAouUtXbtBvUDPr2SXbJ19qbXiWq-OA0rEiYtGPn_pjjFwUh6Ow06lcQ2tg7h2PZcPDN5l1gYR4YBCc6MezpW41D3QfqsNYPBofV1Xw"
-  - name: single-device
-    config:
-      keycloak_url: "http://keycloak:8080"
-      realm: "fortressbank-realm"
-      client_id: "kong"
-      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+
+  # - name: single-device
+  #   route: transaction-service-route
+  #   config:
+  #     keycloak_url: "http://keycloak:8080"
+  #     realm: "fortressbank-realm"
+  #     admin_token: "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJyU0FtOGszLUJpa0xsel9TSDNhMDZVZTF2SFFqTHZGZmhwbWt3MXpncjJvIn0.eyJleHAiOjE3Njc1MjI3OTQsImlhdCI6MTc2NzUyMjQ5NCwianRpIjoiZjhhNmIxNzUtZDRmMC00NDIzLWJkNzItNDI0NDlhOWM2NGIxIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4ODg4L3JlYWxtcy9mb3J0cmVzc2JhbmstcmVhbG0iLCJhdWQiOlsicmVhbG0tbWFuYWdlbWVudCIsImFjY291bnQiXSwic3ViIjoiZWUzMmJiZmYtNzRkNi00M2U0LTgwYzUtMzhmZmVhZDNkZGE0IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiYmFja2VuZC1zZXJ2aWNlIiwiYWNyIjoiMSIsInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtZm9ydHJlc3NiYW5rLXJlYWxtIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJyZWFsbS1tYW5hZ2VtZW50Ijp7InJvbGVzIjpbInF1ZXJ5LXVzZXJzIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6InByb2ZpbGUgZW1haWwiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImNsaWVudElkIjoiYmFja2VuZC1zZXJ2aWNlIiwiY2xpZW50SG9zdCI6IjE3Mi4xOC4wLjEiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtYmFja2VuZC1zZXJ2aWNlIiwiY2xpZW50QWRkcmVzcyI6IjE3Mi4xOC4wLjEifQ.N0ADCSv_kP1VWQZmNscv2KLthsJB_DjA4NowBLeIViLD6Q2gYhfSWYZfiwdqEIeustKPmkHTnsepeCoFbhiGPZA0HJQq8nqtpJuG_h4UGUBLvXHxB06p5HRNX68Ihtkh5SvPEKJm6-wl3mz8ej8EMFLjfa7K-Bxv_aGnYT0pjBVVf8MzOUqGhkyCxzuCL_EeUn3AoDuvQQSYlr-_DBaWjM-BnYXYSr61nt9zv7MtnWvVHavXAouUtXbtBvUDPr2SXbJ19qbXiWq-OA0rEiYtGPn_pjjFwUh6Ow06lcQ2tg7h2PZcPDN5l1gYR4YBCc6MezpW41D3QfqsNYPBofV1Xw"
+
+  # - name: single-device
+  #   route: notification-service-route
+  #   config:
+  #     keycloak_url: "http://keycloak:8080"
+  #     realm: "fortressbank-realm"
+  #     admin_token: "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJyU0FtOGszLUJpa0xsel9TSDNhMDZVZTF2SFFqTHZGZmhwbWt3MXpncjJvIn0.eyJleHAiOjE3Njc1MjI3OTQsImlhdCI6MTc2NzUyMjQ5NCwianRpIjoiZjhhNmIxNzUtZDRmMC00NDIzLWJkNzItNDI0NDlhOWM2NGIxIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4ODg4L3JlYWxtcy9mb3J0cmVzc2JhbmstcmVhbG0iLCJhdWQiOlsicmVhbG0tbWFuYWdlbWVudCIsImFjY291bnQiXSwic3ViIjoiZWUzMmJiZmYtNzRkNi00M2U0LTgwYzUtMzhmZmVhZDNkZGE0IiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiYmFja2VuZC1zZXJ2aWNlIiwiYWNyIjoiMSIsInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJvZmZsaW5lX2FjY2VzcyIsImRlZmF1bHQtcm9sZXMtZm9ydHJlc3NiYW5rLXJlYWxtIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJyZWFsbS1tYW5hZ2VtZW50Ijp7InJvbGVzIjpbInF1ZXJ5LXVzZXJzIl19LCJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6InByb2ZpbGUgZW1haWwiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImNsaWVudElkIjoiYmFja2VuZC1zZXJ2aWNlIiwiY2xpZW50SG9zdCI6IjE3Mi4xOC4wLjEiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtYmFja2VuZC1zZXJ2aWNlIiwiY2xpZW50QWRkcmVzcyI6IjE3Mi4xOC4wLjEifQ.N0ADCSv_kP1VWQZmNscv2KLthsJB_DjA4NowBLeIViLD6Q2gYhfSWYZfiwdqEIeustKPmkHTnsepeCoFbhiGPZA0HJQq8nqtpJuG_h4UGUBLvXHxB06p5HRNX68Ihtkh5SvPEKJm6-wl3mz8ej8EMFLjfa7K-Bxv_aGnYT0pjBVVf8MzOUqGhkyCxzuCL_EeUn3AoDuvQQSYlr-_DBaWjM-BnYXYSr61nt9zv7MtnWvVHavXAouUtXbtBvUDPr2SXbJ19qbXiWq-OA0rEiYtGPn_pjjFwUh6Ow06lcQ2tg7h2PZcPDN5l1gYR4YBCc6MezpW41D3QfqsNYPBofV1Xw"
 
   # PROTECT user-main-route ONLY
   - name: openid-connect
     route: user-main-route
     config:
       client_id: "kong"
-      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe"
+      # client_secret: "XLODsjH5G3f9iqGftbrkdHeNw3NVfNdZ"
+      client_secret: "pmFStZwGO8sb0mBDkZmP5niE3wmEELqe" # Dùng đúng secret của bạn
       discovery: "http://keycloak:8080/realms/fortressbank-realm/.well-known/openid-configuration"
       session_secret: "random-secret-here"
       scope: "openid profile email"
@@ -206,7 +223,9 @@ plugins:
   - name: cors
     config:
       origins:
-        - "http://localhost:5174"
+        - "http://localhost:5173" # Vite default port
+        - "http://localhost:5174" # Alternative port
+        - "http://localhost:3000" # Common React dev port
       methods:
         - GET
         - POST
@@ -220,6 +239,7 @@ plugins:
         - X-Request-ID
         - Accept
         - Origin
+        - X-Device-Id
       exposed_headers:
         - X-RateLimit-Limit-Minute
         - X-RateLimit-Remaining-Minute

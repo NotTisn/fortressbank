@@ -29,9 +29,9 @@ public class SingleDeviceAuthenticator implements Authenticator {
     public static final String DEVICE_ID_HEADER = "X-Device-Id";
 
     // Clients that should skip single-device enforcement (admin/console clients)
+    // Note: account-console removed to enforce single-device for user account management
     private static final String[] EXEMPT_CLIENT_IDS = {
         "security-admin-console",
-        "account-console",
         "admin-cli"
     };
 
