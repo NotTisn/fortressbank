@@ -265,6 +265,7 @@ plugins:
     config:
       origins:
         - "http://localhost:5174"
+        - "http://localhost:3000"
       methods:
         - GET
         - POST

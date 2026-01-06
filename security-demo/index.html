@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ FortressBank Security Incident Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">🏦</div>
+                <div class="header-text">
+                    <h1>FortressBank</h1>
+                    <span class="subtitle">Security Incident Simulator</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="status-indicator" id="systemStatus">
+                    <span class="status-dot active"></span>
+                    <span>System Active</span>
+                </div>
+                <button class="btn btn-secondary" onclick="resetAll()">🔄 Reset All</button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Left Panel: Attack Library -->
+            <section class="panel attack-library">
+                <div class="panel-header">
+                    <h2>⚔️ Attack Library</h2>
+                    <span class="attack-count" id="attackCount">0/0 executed</span>
+                </div>
+                <div class="attack-list" id="attackList">
+                    <!-- Attack cards will be injected here -->
+                </div>
+            </section>
+
+            <!-- Center Panel: Live Response -->
+            <section class="panel response-panel">
+                <div class="panel-header">
+                    <h2>📡 Live Response</h2>
+                    <span class="response-timer" id="responseTimer">--ms</span>
+                </div>
+                
+                <!-- Current Attack Display -->
+                <div class="current-attack" id="currentAttack">
+                    <div class="attack-idle">
+                        <div class="idle-icon">🎯</div>
+                        <p>Select an attack to begin simulation</p>
+                    </div>
+                </div>
+
+                <!-- HTTP Inspector -->
+                <div class="http-inspector" id="httpInspector">
+                    <div class="inspector-header">
+                        <span class="inspector-title">HTTP Inspector</span>
+                        <div class="inspector-tabs">
+                            <button class="tab active" data-tab="request">Request</button>
+                            <button class="tab" data-tab="response">Response</button>
+                        </div>
+                    </div>
+                    <div class="inspector-content">
+                        <pre id="requestContent" class="code-block">// Select an attack to see the HTTP request</pre>
+                        <pre id="responseContent" class="code-block hidden">// Response will appear here</pre>
+                    </div>
+                </div>
+
+                <!-- Risk Gauge -->
+                <div class="risk-section">
+                    <div class="risk-header">
+                        <h3>🎚️ Threat Level</h3>
+                        <span class="risk-label" id="riskLabel">IDLE</span>
+                    </div>
+                    <div class="risk-gauge">
+                        <div class="gauge-track">
+                            <div class="gauge-fill" id="gaugeFill" style="width: 0%"></div>
+                        </div>
+                        <div class="gauge-markers">
+                            <span>0</span>
+                            <span>25</span>
+                            <span>50</span>
+                            <span>75</span>
+                            <span>100</span>
+                        </div>
+                    </div>
+                    <div class="risk-score" id="riskScore">0</div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Forensics -->
+            <section class="panel forensics-panel">
+                <div class="panel-header">
+                    <h2>🔍 Forensic Trail</h2>
+                    <button class="btn btn-small" onclick="clearLogs()">Clear</button>
+                </div>
+                <div class="forensics-log" id="forensicsLog">
+                    <div class="log-empty">
+                        <span>Waiting for security events...</span>
+                    </div>
+                </div>
+
+                <!-- Defense Layers -->
+                <div class="defense-layers">
+                    <h3>🛡️ Defense Layers Activated</h3>
+                    <div class="layer-list" id="layerList">
+                        <div class="layer inactive" data-layer="gateway">
+                            <span class="layer-icon">🚪</span>
+                            <span class="layer-name">Kong Gateway</span>
+                            <span class="layer-status">—</span>
+                        </div>
+                        <div class="layer inactive" data-layer="auth">
+                            <span class="layer-icon">🔐</span>
+                            <span class="layer-name">JWT Auth</span>
+                            <span class="layer-status">—</span>
+                        </div>
+                        <div class="layer inactive" data-layer="ownership">
+                            <span class="layer-icon">👤</span>
+                            <span class="layer-name">Ownership Check</span>
+                            <span class="layer-status">—</span>
+                        </div>
+                        <div class="layer inactive" data-layer="validation">
+                            <span class="layer-icon">✅</span>
+                            <span class="layer-name">Input Validation</span>
+                            <span class="layer-status">—</span>
+                        </div>
+                        <div class="layer inactive" data-layer="risk">
+                            <span class="layer-icon">📊</span>
+                            <span class="layer-name">Risk Engine</span>
+                            <span class="layer-status">—</span>
+                        </div>
+                        <div class="layer inactive" data-layer="audit">
+                            <span class="layer-icon">📝</span>
+                            <span class="layer-name">Audit Logger</span>
+                            <span class="layer-status">—</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer Stats -->
+        <footer class="footer">
+            <div class="stat">
+                <span class="stat-value" id="totalAttacks">0</span>
+                <span class="stat-label">Attacks Simulated</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="blockedCount">0</span>
+                <span class="stat-label">Blocked</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value" id="avgResponseTime">0ms</span>
+                <span class="stat-label">Avg Response</span>
+            </div>
+            <div class="stat">
+                <span class="stat-value owasp-coverage">10/10</span>
+                <span class="stat-label">OWASP Coverage</span>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal for Attack Details -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="attackModal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Attack Details</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Dynamic content -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                <button class="btn btn-danger" id="launchBtn" onclick="launchSelectedAttack()">
+                    🚀 Launch Attack
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="attacks.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
