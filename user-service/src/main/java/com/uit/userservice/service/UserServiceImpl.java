@@ -224,7 +224,8 @@ public class UserServiceImpl implements UserService {
                 request.getUsername(),
                 request.getEmail(),
                 request.getFullName(),
-                request.getPassword()
+                request.getPassword(),
+                request.getPhoneNumber()
         );
 
         // 1.1. Assign roles to user in Keycloak
