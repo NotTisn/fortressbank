@@ -35,6 +35,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.uit.sharedkernel.dto.*;
 import com.uit.transactionservice.dto.request.AdminDepositRequest;
+import com.uit.transactionservice.dto.request.ConfirmFaceAuthRequest;
+import com.uit.transactionservice.client.dto.RiskAssessmentRequest;
+import com.uit.transactionservice.client.dto.RiskAssessmentResponse;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -59,6 +62,7 @@ public class TransactionService {
     private final TransactionSseService sseService;
     private final AuditEventPublisher auditEventPublisher;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final com.uit.transactionservice.client.RiskEngineClient riskEngineClient;
     
     /**
      * Handle SePay webhook for Top-up (Deposit)
@@ -205,7 +209,8 @@ public class TransactionService {
                 .receiverAccountId(accountId)
                 .receiverAccountNumber(request.getAccountNumber())
                 .receiverUserId(userId)
-                .senderUserId(null)
+                .senderAccountId("admin")
+                .senderUserId("admin")
                 .amount(request.getAmount())
                 .feeAmount(BigDecimal.ZERO)
                 .transactionType(TransactionType.DEPOSIT)
@@ -271,6 +276,7 @@ public class TransactionService {
         log.info("Creating transfer from {} to {} with OTP", request.getSenderAccountNumber(), request.getReceiverAccountNumber());
 
         String senderUserId = null;
+        String senderAccountId = null;
 
         // 1. Validate Sender Account Exists (Always)
         try {
@@ -279,11 +285,16 @@ public class TransactionService {
                  throw new AppException(ErrorCode.ACCOUNT_NOT_FOUND, "Sender account not found: " + request.getSenderAccountNumber());
             }
 
+            Object senderAccountIdObj = senderInfo.get("accountId");
+            if (senderAccountIdObj != null) {
+                senderAccountId = senderAccountIdObj.toString();
+            }
+
             Object senderUserIdObj = senderInfo.get("userId");
             if (senderUserIdObj != null) {
                 senderUserId = senderUserIdObj.toString();
-                log.info("Sender account validated - AccountNumber: {}, UserId: {}",
-                    request.getSenderAccountNumber(), senderUserId);
+                log.info("Sender account validated - AccountNumber: {}, AccountId: {}, UserId: {}",
+                    request.getSenderAccountNumber(), senderAccountId, senderUserId);
             } else {
                 log.warn("Sender account has no userId: {}", request.getSenderAccountNumber());
             }
@@ -336,16 +347,40 @@ public class TransactionService {
         }
 
         // 3. Check transaction limit using Sender Account ID
-        checkTransactionLimit(request.getSenderAccountId(), request.getAmount());
+        checkTransactionLimit(senderAccountId, request.getAmount());
 
-        // 4. Fee is temporarily set to ZERO (no transaction fee for now)
+        // 4. Perform Risk Assessment
+        log.info("Performing risk assessment for User: {} - Amount: {}", userId, request.getAmount());
+        boolean requireFaceAuth = false;
+        try {
+            RiskAssessmentRequest riskRequest = RiskAssessmentRequest.builder()
+                    .userId(userId)
+                    .amount(request.getAmount())
+                    .payeeId(receiverAccountNumber)
+                    .build();
+            
+            RiskAssessmentResponse riskResponse = riskEngineClient.assessRisk(riskRequest);
+            
+            log.info("Risk Level: {} - Challenge: {}", riskResponse.getRiskLevel(), riskResponse.getChallengeType());
+            
+            if ("HIGH".equals(riskResponse.getRiskLevel())) {
+                requireFaceAuth = true;
+                log.warn("High risk detected! Transaction {} will require FaceID authentication.", request.getSenderAccountNumber());
+            }
+        } catch (Exception e) {
+            log.error("Risk assessment failed, falling back to standard OTP: {}", e.getMessage());
+        }
+
+        // 5. Fee is temporarily set to ZERO (no transaction fee for now)
         BigDecimal fee = BigDecimal.ZERO;
 
-        // 5. Create transaction with PENDING_OTP status
+        // 6. Create transaction
         String correlationId = UUID.randomUUID().toString();
         
+        TransactionStatus initialStatus = requireFaceAuth ? TransactionStatus.PENDING_FACE_AUTH : TransactionStatus.PENDING_OTP;
+        
         Transaction transaction = Transaction.builder()
-                .senderAccountId(request.getSenderAccountId())
+                .senderAccountId(senderAccountId)
                 .senderAccountNumber(request.getSenderAccountNumber())
                 .senderUserId(senderUserId)
                 .receiverAccountNumber(request.getReceiverAccountNumber())
@@ -354,7 +389,7 @@ public class TransactionService {
                 .amount(request.getAmount())
                 .feeAmount(fee)
                 .transactionType(request.getTransactionType())
-                .status(TransactionStatus.PENDING_OTP)
+                .status(initialStatus)
                 .description(request.getDescription())
                 // Saga Orchestration Fields
                 .correlationId(correlationId)
@@ -362,20 +397,34 @@ public class TransactionService {
                 .build();
         transaction = transactionRepository.save(transaction);
         
-        log.info("Transaction created with ID: {} - Type: {} - Status: PENDING_OTP", 
-                transaction.getTransactionId(), request.getTransactionType());
+        log.info("Transaction created with ID: {} - Status: {}", 
+                transaction.getTransactionId(), initialStatus);
 
-        // 6. Generate and save OTP to Redis
+        TransactionResponse response = transactionMapper.toResponse(transaction);
+        response.setRequireFaceAuth(requireFaceAuth);
+
+        // 7. If FaceID is NOT required, proceed directly to OTP
+        if (!requireFaceAuth) {
+            initiateOtpProcess(transaction, phoneNumber);
+        }
+
+        return response;
+    }
+
+    /**
+     * Logic to generate, save and send OTP.
+     * Reusable for both standard flow and post-FaceID flow.
+     */
+    private void initiateOtpProcess(Transaction transaction, String phoneNumber) {
+        // Generate and save OTP to Redis
         String otpCode = otpService.generateOTP();
-        log.info("Generated OTP Code: " + otpCode); // For development only
+        log.info("Generated OTP Code for Tx {}: {}", transaction.getTransactionId(), otpCode); 
+        
         otpService.saveOTP(transaction.getTransactionId(), otpCode, phoneNumber);
         
-        log.info("OTP generated and saved to Redis for transaction: {}", transaction.getTransactionId());
-
-        // 7. Send OTP SMS via event (notification-service will handle)
+        // Send OTP notification
         sendOTPNotification(transaction.getTransactionId(), phoneNumber, otpCode);
-
-        return transactionMapper.toResponse(transaction);
+        log.info("OTP process initiated for transaction: {}", transaction.getTransactionId());
     }
 
     /**
@@ -762,7 +811,7 @@ public class TransactionService {
         BigDecimal totalAmount = transaction.getAmount();
         
         try {
-            // Step 1: Debit sender account first (sync)
+
             log.info("Step 1: Debiting sender account {} - Amount: {}", 
                     transaction.getSenderAccountId(), totalAmount);
             
@@ -1198,6 +1247,34 @@ public class TransactionService {
                 .build();
         auditEventPublisher.publishAuditEvent(auditEvent);
     }
-    
-
+     
+    @Transactional
+    public void confirmFaceAuth(ConfirmFaceAuthRequest request) {
+        UUID transactionId = request.getTransactionId();
+        log.info("Confirming FaceID authentication for transaction: {}", transactionId);
+        
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
+        
+        if (transaction.getStatus() != TransactionStatus.PENDING_FACE_AUTH) {
+            log.error("Invalid transaction status for FaceID confirmation: {}", transaction.getStatus());
+            throw new AppException(ErrorCode.TRANSACTION_STATUS_CONFLICT, "Transaction is not pending FaceID authentication");
+        }
+        
+        // Update status to PENDING_OTP
+        transaction.setStatus(TransactionStatus.PENDING_OTP);
+        transactionRepository.save(transaction);
+        
+        // Use phone number from request (provided by User Service)
+        String phoneNumber = request.getPhoneNumber();
+        if (phoneNumber == null || phoneNumber.isEmpty()) {
+             // Fallback for safety
+             phoneNumber = "+84857311444";
+             log.warn("No phone number provided in FaceAuth confirmation, using default: {}", phoneNumber);
+        }
+        
+        initiateOtpProcess(transaction, phoneNumber);
+        
+        log.info("FaceID confirmed. Transaction {} moved to PENDING_OTP.", transactionId);
+    }
 }

@@ -253,29 +253,26 @@ services:
     networks:
       - internal
 
-  # risk-engine:
-  #   build:
-  #     context: .
-  #     dockerfile: risk-engine/Dockerfile
-  #     target: risk-engine
-  #     args:
-  #       - MAVEN_OPTS=-Xmx512m
-  #   container_name: risk-engine
-  #   environment:
-  #     SPRING_PROFILES_ACTIVE: docker
-  #     SERVER_PORT: 6000
-  #     SPRING_CLOUD_CONFIG_URI: http://config-server:8888
-  #   depends_on:
-  #     keycloak:
-  #       condition: service_healthy
-  #     config-server:
-  #       condition: service_healthy
-  #     discovery:
-  #       condition: service_healthy
-  #   ports:
-  #     - "6000:6000"
-  #   networks:
-  #     - internal
+  risk-engine:
+    build:
+      context: .
+      # FAST LOCAL BUILD
+      dockerfile: Dockerfile.services.local
+      target: risk-engine
+    container_name: risk-engine
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 6000
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+    depends_on:
+      discovery:
+        condition: service_healthy
+      config-server:
+        condition: service_started
+    ports:
+      - "6000:6000"
+    networks:
+      - internal
 
   # reference-service:
   #   build:
@@ -303,3 +300,32 @@ services:
   #     - "4003:4003"
   #   networks:
   #     - internal
+
+  backup-service:
+    build:
+      context: .
+      dockerfile: backup-service/Dockerfile
+    container_name: backup-service
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://backup-service-db:5432/backupdb
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 4006
+      SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+      BACKUP_DIR: /app/backups
+      BACKUP_RETENTION_DAYS: 30
+    depends_on:
+      discovery:
+        condition: service_healthy
+      backup-service-db:
+        condition: service_healthy
+      config-server:
+        condition: service_started
+    ports:
+      - "4006:4006"
+    volumes:
+      - ./backups:/app/backups
+      - /var/run/docker.sock:/var/run/docker.sock  # Required for docker exec commands
+    networks:
+      - internal

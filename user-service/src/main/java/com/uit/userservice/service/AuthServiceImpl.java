@@ -297,8 +297,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public TokenResponse login(LoginRequest request) {
-        // Keycloak sẽ verify username/password
-        return keycloakClient.loginWithPassword(request.username(), request.password());
+        return keycloakClient.loginWithPassword(request.username(), request.password(), request.deviceId());
     }
 
     @Override

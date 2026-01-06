@@ -1,0 +1,47 @@
+name: Reference Service CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'reference-service/**'
+      - 'shared-kernel/**'
+      - 'pom.xml'
+      - '.github/workflows/reference-service.yml'
+  pull_request:
+    branches: [ "main", "develop" ]
+    paths:
+      - 'reference-service/**'
+      - 'shared-kernel/**'
+      - 'pom.xml'
+
+jobs:
+  test:
+    name: Reference Service Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # Mượn wrapper của User Service
+      - name: Prepare User Service Wrapper
+        run: |
+          sed -i 's/\r$//' user-service/mvnw
+          chmod +x user-service/mvnw
+
+      - name: Install Parent POM
+        run: ./user-service/mvnw install -N -DskipTests -f pom.xml
+
+      - name: Install Shared Kernel
+        run: ./user-service/mvnw install -DskipTests -f shared-kernel/pom.xml
+
+      - name: Run Reference Service Tests
+        run: ./user-service/mvnw clean test jacoco:report -f reference-service/pom.xml

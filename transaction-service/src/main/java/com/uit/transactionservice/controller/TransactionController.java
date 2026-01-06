@@ -3,6 +3,7 @@ package com.uit.transactionservice.controller;
 import com.uit.sharedkernel.api.ApiResponse;
 import com.uit.sharedkernel.security.JwtUtils;
 import com.uit.transactionservice.dto.VerifyOTPRequest;
+import com.uit.transactionservice.dto.request.ConfirmFaceAuthRequest;
 import com.uit.transactionservice.dto.request.CreateTransferRequest;
 import com.uit.transactionservice.dto.request.ResendOtpRequest;
 import com.uit.transactionservice.dto.response.TransactionLimitResponse;
@@ -53,6 +54,10 @@ public class TransactionController {
         try {
             // Extract userId and phoneNumber from JWT token using utility
             String userId = JwtUtils.getUserId(jwt);
+//             @SuppressWarnings("unchecked")
+//             Map<String, Object> userInfo = (Map<String, Object>) httpRequest.getAttribute("userInfo");
+//             String userId = "test-user"; // Default for testing
+//             String phoneNumber = "+84857311444"; // Default for testing
             
             log.info("Creating transfer for user: {}", userId);
             
@@ -81,7 +86,7 @@ public class TransactionController {
 
             log.info("Transfer created successfully: {}", response.getTransactionId());
             return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.success(response));
+                   .body(ApiResponse.success(response));
 
         } catch (Exception e) {
             log.error("=== CREATE TRANSFER FAILED ===", e);
@@ -213,5 +218,13 @@ public class TransactionController {
         String countryCode = phoneNumber.substring(0, 3);
         String lastDigits = phoneNumber.substring(phoneNumber.length() - visibleDigits);
         return countryCode + "*".repeat(Math.max(0, maskLength)) + lastDigits;
+    }
+    
+    @PostMapping("/internal/face-auth-success")
+    public ResponseEntity<ApiResponse<Void>> confirmFaceAuth(
+            @RequestBody ConfirmFaceAuthRequest request) {
+        
+        transactionService.confirmFaceAuth(request);
+        return ResponseEntity.ok(ApiResponse.success(null));
     }
 }

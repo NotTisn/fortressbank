@@ -28,6 +28,8 @@ notification-service/target/
 risk-engine/target/
 user-service/target/
 keycloak-extensions/target/
+audit-service/target/
+backup-service/target/
 
 # IntelliJ IDEA files
 .idea/
@@ -69,4 +71,4 @@ bootstrap.yml
 
 notification-service/src/main/resources/application.yml
 
-target/
+audit-service/target

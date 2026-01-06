@@ -155,6 +155,26 @@ services:
       timeout: 5s
       retries: 5
 
+  backup-service-db:
+    image: postgres:16-alpine
+    container_name: backup-service-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_DB: backupdb
+    ports:
+      - "5438:5432"
+    volumes:
+      # This 'backupdb_data' is defined in docker-compose.base.yml
+      - backupdb_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -h localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   keycloak:
     image: quay.io/keycloak/keycloak:20.0
     container_name: fortressbank-keycloak
@@ -226,7 +246,7 @@ services:
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_PROXY_LISTEN: "0.0.0.0:8000"
       KONG_ADMIN_LISTEN: "0.0.0.0:8001"
-      KONG_PLUGINS: "bundled,openid-connect"
+      KONG_PLUGINS: "bundled,openid-connect,single-device"
       KONG_DECLARATIVE_CONFIG: /usr/local/kong/declarative/kong.yml
       LUA_PATH: "/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;;"
       KONG_LOG_LEVEL: debug
@@ -246,3 +266,23 @@ services:
       start_period: 20s
     networks:
       - internal
+
+  minio:
+    image: minio/minio:latest
+    container_name: fortressbank-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"      # API port
+      - "9001:9001"      # Console UI port
+    volumes:
+      - minio_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

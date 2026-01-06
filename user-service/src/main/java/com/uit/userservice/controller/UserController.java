@@ -67,10 +67,11 @@ public class UserController {
     @PostMapping(value = "/verify-transaction", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<com.uit.userservice.dto.response.FaceVerificationResult> verifyTransaction(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestPart("files") List<MultipartFile> files
+            @RequestPart("files") List<MultipartFile> files,
+            @RequestParam(value = "transactionId", required = false) String transactionId
     ) {
         String userId = jwt.getSubject();
-        var result = faceIdService.verifyFace(userId, files);
+        var result = faceIdService.verifyFace(userId, files, transactionId);
 
         return ApiResponse.success(result);
     }

@@ -28,9 +28,31 @@ public class SingleDeviceAuthenticator implements Authenticator {
     public static final String DEVICE_ID_PARAM = "deviceId";
     public static final String DEVICE_ID_HEADER = "X-Device-Id";
 
+    // Clients that should skip single-device enforcement (admin/console clients)
+    // Note: account-console removed to enforce single-device for user account management
+    private static final String[] EXEMPT_CLIENT_IDS = {
+        "security-admin-console",
+        "admin-cli"
+    };
+
     @Override
     public void authenticate(AuthenticationFlowContext context) {
         var httpRequest = context.getHttpRequest();
+        
+        // Skip single-device enforcement for admin/console clients
+        String clientId = context.getAuthenticationSession() != null 
+            ? context.getAuthenticationSession().getClient().getClientId() 
+            : null;
+        
+        if (clientId != null) {
+            for (String exemptClient : EXEMPT_CLIENT_IDS) {
+                if (exemptClient.equals(clientId)) {
+                    LOG.debugf("Skipping single-device enforcement for exempt client: %s", clientId);
+                    context.success();
+                    return;
+                }
+            }
+        }
 
         String deviceId = extractDeviceId(httpRequest.getDecodedFormParameters(),
                 httpRequest.getHttpHeaders().getRequestHeaders().getFirst(DEVICE_ID_HEADER));

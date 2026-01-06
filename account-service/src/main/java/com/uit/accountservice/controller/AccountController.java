@@ -182,6 +182,7 @@ public class AccountController {
     }
 
    @GetMapping("/{accountId}")
+    @RequireRole("user")
     public ResponseEntity<ApiResponse<AccountDto>> getAccountDetail(@PathVariable("accountId") String accountId) {
         AccountDto account = accountService.getAccountDetail(accountId, getCurrentUserId());
         return ResponseEntity.ok(ApiResponse.success(account));
@@ -255,6 +256,22 @@ public class AccountController {
             @Valid @RequestBody VerifyPinRequest request) {
         boolean isValid = accountService.verifyPin(accountId, getCurrentUserId(), request.pin());
         return ResponseEntity.ok(ApiResponse.success(Map.of("valid", isValid)));
+    }
+
+    // POST /accounts/transfers
+    // Initiate transfer with ownership validation
+    @PostMapping("/transfers")
+    @RequireRole("user")
+    public ResponseEntity<ApiResponse<Map<String, String>>> initiateTransfer(
+            @Valid @RequestBody TransferRequest request) {
+        // Validate ownership of sender account
+        String userId = getCurrentUserId();
+        accountService.initiateTransferWithOwnershipCheck(userId, request);
+        return ResponseEntity.ok(ApiResponse.success(Map.of(
+            "message", "Transfer initiated successfully",
+            "fromAccountId", request.getSenderAccountId(),
+            "toAccountId", request.getReceiverAccountId()
+        )));
     }
 
     // ==================== PUBLIC ENDPOINTS (LIMITED ACCESS) ====================

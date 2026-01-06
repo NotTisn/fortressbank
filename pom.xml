@@ -20,6 +20,7 @@
         <module>discovery</module>
         <module>reference-service</module>
         <module>audit-service</module>
+        <module>backup-service</module>
         <module>keycloak-extensions</module>
     </modules>
 
