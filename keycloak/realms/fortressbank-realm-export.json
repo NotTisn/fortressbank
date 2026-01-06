@@ -2001,7 +2001,7 @@
     "id" : "273166c4-acaa-49f2-b26c-9b6ccae2c576",
     "alias" : "single-device-authenticator-config",
     "config" : {
-      "forceLogin" : "true",
+      "forceLogin" : "false",
       "requireDeviceId" : "false"
     }
   } ],

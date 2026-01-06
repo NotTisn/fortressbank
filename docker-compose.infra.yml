@@ -178,10 +178,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:20.0
     container_name: fortressbank-keycloak
-    command:
-      - start-dev
-      - --import-realm
-      - --health-enabled=true
+    entrypoint: /bin/sh -c "cp -f /host-jar/keycloak-extensions-1.0.0.jar /opt/keycloak/providers/ && exec /opt/keycloak/bin/kc.sh start-dev --import-realm --health-enabled=true"
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -201,7 +198,7 @@ services:
     volumes:
       - ./keycloak/realms:/opt/keycloak/data/import
       - ./keycloak/realms:/opt/keycloak/data/export
-      - ./keycloak-extensions/target/keycloak-extensions-1.0.0.jar:/opt/keycloak/providers/keycloak-extensions-1.0.0.jar:ro
+      - ./keycloak-extensions/target:/host-jar:ro
     depends_on:
       keycloak-db:
         condition: service_healthy

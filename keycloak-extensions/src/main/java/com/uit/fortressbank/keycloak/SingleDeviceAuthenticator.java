@@ -103,7 +103,7 @@ public class SingleDeviceAuthenticator implements Authenticator {
             return;
         }
 
-        boolean forceLogin = getBooleanConfig(context, CONFIG_FORCE_LOGIN, true);
+        boolean forceLogin = getBooleanConfig(context, CONFIG_FORCE_LOGIN, false); // Changed default to false
 
         // For browser-based logins (auto-generated deviceId), always enforce single-device
         // For explicit deviceId (from mobile apps), allow same-device re-authentication
@@ -129,7 +129,9 @@ public class SingleDeviceAuthenticator implements Authenticator {
         }
 
         // Different device or browser-based login (auto-generated deviceId): enforce single-device
+        // NEW LOGIC: Block new login instead of kicking old sessions
         if (forceLogin) {
+            // forceLogin = true: Remove existing sessions (old behavior - kick old device)
             LOG.infof("Force login enabled; removing %d existing sessions for user %s (deviceId: %s)",
                     existingSessions.size(), user.getUsername(), deviceId);
             for (UserSessionModel existing : existingSessions) {
@@ -140,10 +142,11 @@ public class SingleDeviceAuthenticator implements Authenticator {
                     .forEach(offlineSession -> session.sessions().removeOfflineUserSession(realm, offlineSession));
             context.success();
         } else {
+            // forceLogin = false (DEFAULT): Block new login attempt (new behavior - protect existing session)
             LOG.infof("Blocking login for user %s: already logged in on another device (deviceId: %s)",
                     user.getUsername(), deviceId);
             Response challenge = Response.status(Response.Status.CONFLICT)
-                    .entity("{\"error\":\"already_logged_in\",\"error_description\":\"Already logged in on another device\"}")
+                    .entity("{\"error\":\"already_logged_in\",\"error_description\":\"User is already logged in on another device. Please logout from the other device first or contact administrator.\"}")
                     .type(MediaType.APPLICATION_JSON)
                     .build();
             context.failureChallenge(AuthenticationFlowError.USER_CONFLICT, challenge);
