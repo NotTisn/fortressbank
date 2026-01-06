@@ -19,7 +19,17 @@ public interface AuthService {
     OtpResponse validateAndSendOtp(ValidateRegistrationRequest request);
 
     ValidationResponse verifyOtp(VerifyOtpRequest request);
-    TokenResponse login(LoginRequest request);
+    
+    // Login with device switch OTP support
+    com.uit.userservice.dto.auth.LoginResponse login(LoginRequest request);
+    
+    // Verify device switch OTP and complete login
+    com.uit.userservice.dto.auth.LoginResponse verifyDeviceSwitchOtpAndLogin(
+            com.uit.userservice.dto.request.VerifyDeviceSwitchOtpRequest verifyRequest,
+            String username,
+            String password,
+            String deviceId
+    );
 
     void logout(LogoutRequest request);
 
@@ -34,5 +44,8 @@ public interface AuthService {
 
     // Face registration (public - no auth required, for post-registration flow)
     FaceRegistrationResult registerFacePublic(String userId, List<MultipartFile> files);
+    
+    // Helper method to find user by username/email/phone
+    com.uit.userservice.entity.User findByUsernameOrEmailOrPhone(String identifier);
 }
 

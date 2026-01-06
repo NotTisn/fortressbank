@@ -466,4 +466,62 @@ public class KeycloakClient {
             log.warn("Failed to assign roles {} to user {}", roleNames, userId);
         }
     }
+
+    /**
+     * Revoke all active sessions for a user
+     * Used for device switching - kicks out all existing sessions
+     */
+    public void revokeAllUserSessions(String userId) {
+        try {
+            String adminToken = getAdminAccessToken();
+            
+            String logoutUrl = properties.getAuthServerUrl()
+                    + "/admin/realms/" + properties.getRealm()
+                    + "/users/" + userId + "/logout";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(adminToken);
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            
+            restTemplate.postForEntity(logoutUrl, entity, Void.class);
+            log.info("Revoked all sessions for user: {}", userId);
+
+        } catch (HttpStatusCodeException ex) {
+            log.error("Failed to revoke sessions for user {}: {}", userId, ex.getResponseBodyAsString());
+            throw new AppException(ErrorCode.UNAUTHORIZED, "Failed to revoke user sessions");
+        }
+    }
+
+    /**
+     * Get all active sessions for a user
+     * Returns list of session info (id, start time, etc.)
+     */
+    public List<Map<String, Object>> getUserSessions(String userId) {
+        try {
+            String adminToken = getAdminAccessToken();
+            
+            String sessionsUrl = properties.getAuthServerUrl()
+                    + "/admin/realms/" + properties.getRealm()
+                    + "/users/" + userId + "/sessions";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(adminToken);
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            
+            ResponseEntity<List> response = restTemplate.exchange(
+                    sessionsUrl, 
+                    HttpMethod.GET, 
+                    entity, 
+                    List.class
+            );
+
+            return response.getBody() != null ? response.getBody() : List.of();
+
+        } catch (HttpStatusCodeException ex) {
+            log.error("Failed to get sessions for user {}: {}", userId, ex.getResponseBodyAsString());
+            return List.of();
+        }
+    }
 }

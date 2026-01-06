@@ -13,6 +13,7 @@ public class RabbitMQConstants {
     public static final String TRANSACTION_SUCCESS = "transaction.success";
     public static final String FORGOT_PASSWORD_OTP_ROUTING_KEY = "forgot-password.otp";
     public static final String REGISTRATION_OTP_ROUTING_KEY = "registration.otp";
+    public static final String DEVICE_SWITCH_OTP_ROUTING_KEY = "device-switch.otp";
 
     // Queues
     public static final String TRANSACTION_QUEUE = "transaction-queue";
@@ -20,6 +21,7 @@ public class RabbitMQConstants {
     public static final String OTP_QUEUE = "notification.otp.queue";
     public static final String FORGOT_PASSWORD_OTP_QUEUE = "notification.forgot-password-otp.queue";
     public static final String REGISTRATION_OTP_QUEUE = "notification.registration-otp.queue";
+    public static final String DEVICE_SWITCH_OTP_QUEUE = "notification.device-switch-otp.queue";
 
     public static final String INTERNAL_EXCHANGE = "internal.exchange";
     public static final String USER_CREATED_QUEUE = "user.created.queue";

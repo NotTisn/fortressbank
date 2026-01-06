@@ -12,6 +12,10 @@ import org.keycloak.models.UserSessionModel;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
@@ -24,9 +28,12 @@ public class SingleDeviceAuthenticator implements Authenticator {
 
     public static final String CONFIG_FORCE_LOGIN = "forceLogin";
     public static final String CONFIG_REQUIRE_DEVICE_ID = "requireDeviceId";
+    public static final String CONFIG_ENABLE_OTP_CHALLENGE = "enableOtpChallenge";
+    public static final String CONFIG_USER_SERVICE_URL = "userServiceUrl";
     public static final String DEVICE_ID_NOTE_KEY = "deviceId";
     public static final String DEVICE_ID_PARAM = "deviceId";
     public static final String DEVICE_ID_HEADER = "X-Device-Id";
+    public static final String PENDING_DEVICE_SWITCH_NOTE = "pendingDeviceSwitch";
 
     // Clients that should skip single-device enforcement (admin/console clients)
     // Note: account-console removed to enforce single-device for user account management
@@ -129,20 +136,50 @@ public class SingleDeviceAuthenticator implements Authenticator {
         }
 
         // Different device or browser-based login (auto-generated deviceId): enforce single-device
-        // NEW LOGIC: Block new login instead of kicking old sessions
+        boolean enableOtpChallenge = getBooleanConfig(context, CONFIG_ENABLE_OTP_CHALLENGE, true);
+        
         if (forceLogin) {
-            // forceLogin = true: Remove existing sessions (old behavior - kick old device)
+            // forceLogin = true: Remove existing sessions immediately (old behavior)
             LOG.infof("Force login enabled; removing %d existing sessions for user %s (deviceId: %s)",
                     existingSessions.size(), user.getUsername(), deviceId);
             for (UserSessionModel existing : existingSessions) {
                 session.sessions().removeUserSession(realm, existing);
             }
-            // Also remove offline sessions
             session.sessions().getOfflineUserSessionsStream(realm, user)
                     .forEach(offlineSession -> session.sessions().removeOfflineUserSession(realm, offlineSession));
             context.success();
+        } else if (enableOtpChallenge) {
+            // NEW: OTP Challenge flow - send OTP to user's phone and require verification
+            LOG.infof("Device conflict detected for user %s. Triggering OTP challenge for deviceId: %s", 
+                    user.getUsername(), deviceId);
+            
+            // Store pending device switch information in auth session
+            if (context.getAuthenticationSession() != null) {
+                context.getAuthenticationSession().setAuthNote(PENDING_DEVICE_SWITCH_NOTE, "true");
+                context.getAuthenticationSession().setAuthNote("newDeviceId", deviceId);
+            }
+            
+            // Call user-service to trigger OTP sending
+            boolean otpSent = triggerDeviceSwitchOtp(context, user.getId(), deviceId);
+            
+            if (otpSent) {
+                // Return challenge requiring OTP verification
+                Response challenge = Response.status(Response.Status.UNAUTHORIZED)
+                        .entity("{\"error\":\"otp_required\",\"error_description\":\"Device switch requires OTP verification. Please check your phone for the verification code.\"}")
+                        .type(MediaType.APPLICATION_JSON)
+                        .build();
+                context.failureChallenge(AuthenticationFlowError.INVALID_CREDENTIALS, challenge);
+            } else {
+                // Fallback: if OTP sending fails, block login
+                LOG.warnf("Failed to send device switch OTP for user %s. Blocking login.", user.getUsername());
+                Response challenge = Response.status(Response.Status.SERVICE_UNAVAILABLE)
+                        .entity("{\"error\":\"otp_service_unavailable\",\"error_description\":\"Unable to send verification code. Please try again later.\"}")
+                        .type(MediaType.APPLICATION_JSON)
+                        .build();
+                context.failureChallenge(AuthenticationFlowError.INTERNAL_ERROR, challenge);
+            }
         } else {
-            // forceLogin = false (DEFAULT): Block new login attempt (new behavior - protect existing session)
+            // forceLogin = false, OTP disabled: Block new login (protect existing session)
             LOG.infof("Blocking login for user %s: already logged in on another device (deviceId: %s)",
                     user.getUsername(), deviceId);
             Response challenge = Response.status(Response.Status.CONFLICT)
@@ -257,6 +294,50 @@ public class SingleDeviceAuthenticator implements Authenticator {
             // Fallback: use timestamp + random to ensure uniqueness
             return "browser-" + System.currentTimeMillis() + "-" + (int)(Math.random() * 10000);
         }
+    }
+
+    /**
+     * Triggers device switch OTP sending by calling user-service API
+     */
+    private boolean triggerDeviceSwitchOtp(AuthenticationFlowContext context, String userId, String newDeviceId) {
+        String userServiceUrl = getStringConfig(context, CONFIG_USER_SERVICE_URL, "http://user-service:4000");
+        String apiUrl = userServiceUrl + "/api/users/device-switch/send-otp";
+        
+        try {
+            URL url = new URL(apiUrl);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            
+            String jsonPayload = String.format("{\"userId\":\"%s\",\"newDeviceId\":\"%s\"}", userId, newDeviceId);
+            
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = jsonPayload.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+            
+            int responseCode = conn.getResponseCode();
+            if (responseCode >= 200 && responseCode < 300) {
+                LOG.infof("Device switch OTP sent successfully for user: %s", userId);
+                return true;
+            } else {
+                LOG.warnf("Failed to send device switch OTP for user: %s. Response code: %d", userId, responseCode);
+                return false;
+            }
+        } catch (Exception e) {
+            LOG.errorf(e, "Error calling user-service to send device switch OTP for user: %s", userId);
+            return false;
+        }
+    }
+    
+    private String getStringConfig(AuthenticationFlowContext context, String key, String defaultValue) {
+        String value = context.getAuthenticatorConfig() != null
+                ? context.getAuthenticatorConfig().getConfig().get(key)
+                : null;
+        return (value != null && !value.isBlank()) ? value : defaultValue;
     }
 }
 

@@ -48,9 +48,42 @@ public class AuthController {
     }
 
     // ==================== OTHER AUTH ENDPOINTS ====================
+    
+    /**
+     * Login with automatic device conflict detection
+     * Returns requiresDeviceSwitchOtp=true if another device is logged in
+     */
     @PostMapping("/login")
-    public ApiResponse<TokenResponse> login(@Valid @RequestBody LoginRequest request) {
+    public ApiResponse<com.uit.userservice.dto.auth.LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ApiResponse.success(authService.login(request));
+    }
+    
+    /**
+     * Verify device switch OTP and complete login
+     * Used when login returns requiresDeviceSwitchOtp=true
+     */
+    @PostMapping("/verify-device-switch-otp")
+    public ApiResponse<com.uit.userservice.dto.auth.LoginResponse> verifyDeviceSwitchOtp(
+            @Valid @RequestBody com.uit.userservice.dto.auth.VerifyDeviceSwitchAndLoginRequest request) {
+        
+        // Find user to get keycloakId
+        com.uit.userservice.entity.User user = authService.findByUsernameOrEmailOrPhone(request.getUsername());
+        
+        // Build verify request
+        com.uit.userservice.dto.request.VerifyDeviceSwitchOtpRequest verifyRequest = 
+                new com.uit.userservice.dto.request.VerifyDeviceSwitchOtpRequest(
+                        user.getId(),
+                        request.getOtp()
+                );
+        
+        return ApiResponse.success(
+                authService.verifyDeviceSwitchOtpAndLogin(
+                        verifyRequest, 
+                        request.getUsername(), 
+                        request.getPassword(), 
+                        request.getDeviceId()
+                )
+        );
     }
 
     @PostMapping("/logout")

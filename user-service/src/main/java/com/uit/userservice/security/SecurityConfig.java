@@ -41,6 +41,8 @@ public class SecurityConfig {
                     .requestMatchers("/auth/**").permitAll()
                     // Allow internal service-to-service endpoints (no JWT required)
                     .requestMatchers("/users/internal/**").permitAll()
+                    // Allow device switch OTP endpoints (called by Keycloak)
+                    .requestMatchers("/api/users/device-switch/**").permitAll()
                     // All other requests require authentication
                         .anyRequest().authenticated()
                 )

@@ -105,6 +105,34 @@ public class NotificationListener {
     }
 
     /**
+     * Handles Device Switch OTP events from user-service
+     * Queue: notification.device-switch-otp.queue
+     * Routing Key: device-switch.otp
+     * Purpose: Send OTP via SMS for device switching authentication
+     */
+    @RabbitListener(queues = RabbitMQConstants.DEVICE_SWITCH_OTP_QUEUE)
+    public void handleDeviceSwitchOtpNotification(Map<String, Object> message) {
+        log.info("Received Device Switch OTP notification event: {}", message);
+
+        try {
+            String phoneNumber = (String) message.get("phoneNumber");
+            String otpCode = (String) message.get("otpCode");
+            String userId = (String) message.get("userId");
+
+            log.info("Processing Device Switch OTP for user: {}, phone: {}", userId, phoneNumber);
+
+            // Send SMS OTP via TextBee API
+            notificationService.sendSmsOtp(phoneNumber, otpCode);
+
+            log.info("Device Switch OTP SMS sent successfully to user: {}", userId);
+
+        } catch (Exception e) {
+            log.error("Failed to send Device Switch OTP notification: {}", e.getMessage(), e);
+            // OTP failures are critical - consider implementing retry logic or alerting
+        }
+    }
+
+    /**
      * Handles transaction completion/failure events from transaction-service
      * Queue: notification-queue
      * Routing Keys: notification.TransactionCompleted, notification.TransactionFailed, notification.ExternalTransferInitiated

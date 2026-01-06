@@ -52,6 +52,12 @@ public class RabbitMQConfig {
         return new Queue(RabbitMQConstants.REGISTRATION_OTP_QUEUE, true);
     }
 
+    // Queue for device switch OTP notifications
+    @Bean
+    public Queue deviceSwitchOtpQueue() {
+        return new Queue(RabbitMQConstants.DEVICE_SWITCH_OTP_QUEUE, true);
+    }
+
     // Binding: OTP events -> OTP Queue
     @Bean
     public Binding otpBinding() {
@@ -74,6 +80,14 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(registrationOtpQueue())
                 .to(transactionExchange())
                 .with(RabbitMQConstants.REGISTRATION_OTP_ROUTING_KEY);
+    }
+
+    // Binding: Device Switch OTP events -> Device Switch OTP Queue
+    @Bean
+    public Binding deviceSwitchOtpBinding() {
+        return BindingBuilder.bind(deviceSwitchOtpQueue())
+                .to(transactionExchange())
+                .with(RabbitMQConstants.DEVICE_SWITCH_OTP_ROUTING_KEY);
     }
 
     // Binding: Transaction notifications -> Transaction Notification Queue

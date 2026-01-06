@@ -425,10 +425,16 @@ class AuthServiceImplTest {
     // ===== login Tests =====
 
     @Test
-    @DisplayName("login() should return token successfully")
+    @DisplayName("login() should return token successfully when no existing sessions")
     void testLogin_Success() {
         // Given
         LoginRequest request = new LoginRequest("johndoe", "password123", "test-device");
+        User user = new User();
+        user.setId("user-id-123");
+        user.setUsername("johndoe");
+        user.setEmail("john@example.com");
+        user.setPhoneNumber("+84901234567");
+        
         TokenResponse expectedToken = new TokenResponse(
                 "access-token",
                 "refresh-token",
@@ -439,16 +445,20 @@ class AuthServiceImplTest {
                 "openid profile email"
         );
 
-        when(keycloakClient.loginWithPassword("johndoe", "password123")).thenReturn(expectedToken);
+        when(userRepository.findByUsername("johndoe")).thenReturn(java.util.Optional.of(user));
+        when(keycloakClient.getUserSessions("user-id-123")).thenReturn(java.util.List.of()); // No sessions
+        when(keycloakClient.loginWithPassword("johndoe", "password123", "test-device")).thenReturn(expectedToken);
 
         // When
-        TokenResponse result = authService.login(request);
+        com.uit.userservice.dto.auth.LoginResponse result = authService.login(request);
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.accessToken()).isEqualTo("access-token");
-        assertThat(result.refreshToken()).isEqualTo("refresh-token");
-        verify(keycloakClient).loginWithPassword("johndoe", "password123");
+        assertThat(result.isSuccess()).isTrue();
+        assertThat(result.isRequiresDeviceSwitchOtp()).isFalse();
+        assertThat(result.getAccessToken()).isEqualTo("access-token");
+        assertThat(result.getRefreshToken()).isEqualTo("refresh-token");
+        verify(keycloakClient).loginWithPassword("johndoe", "password123", "test-device");
     }
 
     // ===== logout Tests =====

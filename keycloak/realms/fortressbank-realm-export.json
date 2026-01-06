@@ -2039,15 +2039,6 @@
           "userSetupAllowed": false
         },
         {
-          "authenticatorConfig": "single-device-authenticator-config",
-          "authenticator": "single-device-authenticator",
-          "authenticatorFlow": false,
-          "requirement": "REQUIRED",
-          "priority": 15,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
           "authenticatorFlow": true,
           "requirement": "CONDITIONAL",
           "priority": 20,
@@ -2120,15 +2111,6 @@
           "authenticatorFlow": false,
           "requirement": "REQUIRED",
           "priority": 20,
-          "autheticatorFlow": false,
-          "userSetupAllowed": false
-        },
-        {
-          "authenticatorConfig": "single-device-authenticator-config",
-          "authenticator": "single-device-authenticator",
-          "authenticatorFlow": false,
-          "requirement": "REQUIRED",
-          "priority": 25,
           "autheticatorFlow": false,
           "userSetupAllowed": false
         },
@@ -2381,7 +2363,8 @@
       "alias": "single-device-authenticator-config",
       "config": {
         "forceLogin": "false",
-        "requireDeviceId": "false"
+        "requireDeviceId": "false",
+        "enableOtpChallenge": "true"
       }
     }
   ],

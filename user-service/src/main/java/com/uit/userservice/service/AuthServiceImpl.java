@@ -20,6 +20,7 @@ import com.uit.userservice.dto.response.ValidationResponse;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import com.uit.userservice.entity.User;
 import com.uit.userservice.keycloak.KeycloakClient;
 import com.uit.userservice.repository.UserRepository;
@@ -47,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
     private final AccountClient accountClient;
     private final FaceIdService faceIdService;
+    private final DeviceSwitchService deviceSwitchService;
 
     // ==================== NEW MULTI-STEP REGISTRATION FLOW ====================
 
@@ -296,8 +298,88 @@ public class AuthServiceImpl implements AuthService {
     // ==================== OTHER AUTH METHODS ====================
 
     @Override
-    public TokenResponse login(LoginRequest request) {
-        return keycloakClient.loginWithPassword(request.username(), request.password(), request.deviceId());
+    public com.uit.userservice.dto.auth.LoginResponse login(LoginRequest request) {
+        // 1. Find user by username (can be email or phone)
+        User user = userRepository.findByUsername(request.username())
+                .or(() -> userRepository.findByEmail(request.username()))
+                .or(() -> userRepository.findByPhoneNumber(request.username()))
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. Check for existing sessions BEFORE login (device conflict)
+        List<Map<String, Object>> sessions = keycloakClient.getUserSessions(user.getId());
+        
+        log.info("Login attempt for user {}. Active sessions: {}", user.getUsername(), sessions.size());
+        
+        if (!sessions.isEmpty()) {
+            // Device conflict detected - send OTP without calling Keycloak
+            // (Keycloak authenticator would block the request anyway)
+            // Password will be verified later when user submits OTP
+            
+            log.info("Device conflict detected for user {}. {} active sessions found. Sending OTP...", 
+                    user.getUsername(), sessions.size());
+            
+            // Send OTP to user's phone
+            com.uit.userservice.dto.request.DeviceSwitchOtpRequest otpRequest = 
+                    new com.uit.userservice.dto.request.DeviceSwitchOtpRequest(
+                            user.getId(),
+                            request.deviceId() != null ? request.deviceId() : "temp-device-id"
+                    );
+            
+            deviceSwitchService.sendDeviceSwitchOtp(otpRequest);
+            
+            // Return response indicating OTP required
+            return com.uit.userservice.dto.auth.LoginResponse.requireOtp(
+                    "Device conflict detected. OTP sent to " + maskPhoneNumber(user.getPhoneNumber())
+            );
+        }
+
+        // 3. No conflict - proceed with normal login
+        // Password will be verified by Keycloak during login
+        TokenResponse tokens = keycloakClient.loginWithPassword(
+                request.username(), 
+                request.password(), 
+                request.deviceId()
+        );
+        
+        return com.uit.userservice.dto.auth.LoginResponse.success(
+                tokens.accessToken(), 
+                tokens.refreshToken()
+        );
+    }
+    
+    /**
+     * Verify device switch OTP and complete login
+     * This method combines OTP verification with automatic login
+     */
+    public com.uit.userservice.dto.auth.LoginResponse verifyDeviceSwitchOtpAndLogin(
+            com.uit.userservice.dto.request.VerifyDeviceSwitchOtpRequest verifyRequest,
+            String username,
+            String password,
+            String deviceId
+    ) {
+        // 1. Verify OTP (this also revokes old sessions)
+        deviceSwitchService.verifyDeviceSwitchOtp(verifyRequest);
+        
+        // 2. Auto login with new device
+        TokenResponse tokens = keycloakClient.loginWithPassword(username, password, deviceId);
+        
+        return com.uit.userservice.dto.auth.LoginResponse.success(
+                tokens.accessToken(),
+                tokens.refreshToken()
+        );
+    }
+    
+    /**
+     * Helper method to mask phone number for security
+     * Example: +84901234567 -> +8490****567
+     */
+    private String maskPhoneNumber(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.length() < 7) {
+            return "***";
+        }
+        int visibleStart = Math.min(5, phoneNumber.length() - 4);
+        int visibleEnd = phoneNumber.length() - 3;
+        return phoneNumber.substring(0, visibleStart) + "****" + phoneNumber.substring(visibleEnd);
     }
 
     @Override
@@ -509,5 +591,13 @@ public class AuthServiceImpl implements AuthService {
 
         // Delegate to FaceIdService
         return faceIdService.registerFace(userId, files);
+    }
+    
+    @Override
+    public User findByUsernameOrEmailOrPhone(String identifier) {
+        return userRepository.findByUsername(identifier)
+                .or(() -> userRepository.findByEmail(identifier))
+                .or(() -> userRepository.findByPhoneNumber(identifier))
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
     }
 }

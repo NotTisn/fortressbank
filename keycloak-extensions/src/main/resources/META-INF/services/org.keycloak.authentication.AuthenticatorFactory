@@ -1,1 +1,2 @@
 com.uit.fortressbank.keycloak.SingleDeviceAuthenticatorFactory
+com.uit.fortressbank.keycloak.DeviceSwitchOtpAuthenticatorFactory

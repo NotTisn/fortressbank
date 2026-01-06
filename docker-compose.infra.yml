@@ -199,6 +199,7 @@ services:
       - ./keycloak/realms:/opt/keycloak/data/import
       - ./keycloak/realms:/opt/keycloak/data/export
       - ./keycloak-extensions/target:/host-jar:ro
+      - ./keycloak/themes:/opt/keycloak/themes
     depends_on:
       keycloak-db:
         condition: service_healthy
