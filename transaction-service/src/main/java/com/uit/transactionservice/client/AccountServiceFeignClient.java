@@ -4,6 +4,7 @@ import com.uit.transactionservice.client.dto.AccountBalanceRequest;
 import com.uit.transactionservice.client.dto.AccountBalanceResponse;
 import com.uit.transactionservice.client.dto.InternalTransferRequest;
 import com.uit.transactionservice.client.dto.InternalTransferResponse;
+import com.uit.transactionservice.dto.response.AccountStatisticsDto;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -63,4 +64,11 @@ public interface AccountServiceFeignClient {
     InternalTransferResponse executeInternalTransfer(
             @RequestBody InternalTransferRequest request
     );
+
+    /**
+     * Get account statistics (total, active, locked, closed counts)
+     * Internal endpoint - service-to-service communication only
+     */
+    @GetMapping("/accounts/internal/statistics")
+    AccountStatisticsDto getAccountStatistics();
 }

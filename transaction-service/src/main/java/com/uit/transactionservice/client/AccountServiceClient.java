@@ -4,6 +4,7 @@ import com.uit.transactionservice.client.dto.AccountBalanceRequest;
 import com.uit.transactionservice.client.dto.AccountBalanceResponse;
 import com.uit.transactionservice.client.dto.InternalTransferRequest;
 import com.uit.transactionservice.client.dto.InternalTransferResponse;
+import com.uit.transactionservice.dto.response.AccountStatisticsDto;
 import com.uit.transactionservice.exception.AccountServiceException;
 import com.uit.transactionservice.exception.InsufficientBalanceException;
 import feign.FeignException;
@@ -246,6 +247,34 @@ public class AccountServiceClient {
 
         } catch (Exception e) {
             log.error("Unexpected error during internal transfer", e);
+            throw new AccountServiceException("Unexpected error: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Get account statistics for dashboard
+     * Called by DashboardService
+     */
+    public AccountStatisticsDto getAccountStatistics() {
+        log.info("Fetching account statistics from account-service");
+
+        try {
+            AccountStatisticsDto response = accountServiceFeignClient.getAccountStatistics();
+            log.info("Successfully fetched account statistics - Total: {}, Active: {}",
+                    response.getTotalAccounts(), response.getActiveAccounts());
+            return response;
+
+        } catch (FeignException.ServiceUnavailable e) {
+            log.error("Account service is unavailable: {}", e.getMessage());
+            throw new AccountServiceException("Account service is temporarily unavailable", e);
+
+        } catch (FeignException e) {
+            log.error("Feign error while fetching account statistics: {} - {}",
+                    e.status(), e.getMessage());
+            throw new AccountServiceException("Failed to fetch account statistics: " + e.getMessage(), e);
+
+        } catch (Exception e) {
+            log.error("Unexpected error while fetching account statistics", e);
             throw new AccountServiceException("Unexpected error: " + e.getMessage(), e);
         }
     }
