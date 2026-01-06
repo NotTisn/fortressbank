@@ -1,6 +1,7 @@
 package com.uit.accountservice.repository;
 
 import com.uit.accountservice.entity.Account;
+import com.uit.accountservice.entity.enums.AccountStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -41,4 +42,10 @@ public interface AccountRepository extends JpaRepository<Account, String> {
     boolean existsByAccountNumber(String accountNumber);
 
     boolean existsByUserId(String userId);
+
+    /**
+     * Count accounts by status for dashboard statistics
+     */
+    @Query("SELECT COUNT(a) FROM Account a WHERE a.status = :status")
+    Long countByStatus(@Param("status") AccountStatus status);
 }

@@ -2,6 +2,7 @@ package com.uit.transactionservice.repository;
 
 import com.uit.transactionservice.entity.Transaction;
 import com.uit.transactionservice.entity.TransactionStatus;
+import com.uit.transactionservice.entity.TransactionType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -61,5 +62,77 @@ public interface TransactionRepository extends JpaRepository<Transaction, java.u
             @Param("status") TransactionStatus status,
             @Param("step") com.uit.transactionservice.entity.SagaStep step,
             @Param("createdBefore") LocalDateTime createdBefore
+    );
+
+    // ========== Dashboard Statistics Queries ==========
+
+    /**
+     * Count total transactions in date range
+     */
+    @Query("SELECT COUNT(t) FROM Transaction t " +
+           "WHERE t.createdAt BETWEEN :startDate AND :endDate")
+    Long countTransactionsByDateRange(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * Count transactions by status in date range
+     */
+    @Query("SELECT COUNT(t) FROM Transaction t " +
+           "WHERE t.status = :status " +
+           "AND t.createdAt BETWEEN :startDate AND :endDate")
+    Long countTransactionsByStatusAndDateRange(
+            @Param("status") TransactionStatus status,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * Count transactions by type in date range
+     */
+    @Query("SELECT COUNT(t) FROM Transaction t " +
+           "WHERE t.transactionType = :type " +
+           "AND t.createdAt BETWEEN :startDate AND :endDate")
+    Long countTransactionsByTypeAndDateRange(
+            @Param("type") TransactionType type,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * Calculate total volume (sum of amounts) for successful transactions
+     */
+    @Query(value = "SELECT COALESCE(SUM(amount), 0) FROM transactions " +
+           "WHERE status IN ('SUCCESS', 'COMPLETED') " +
+           "AND created_at BETWEEN :startDate AND :endDate",
+           nativeQuery = true)
+    BigDecimal calculateTotalVolumeByDateRange(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * Calculate total fees collected
+     */
+    @Query(value = "SELECT COALESCE(SUM(fee_amount), 0) FROM transactions " +
+           "WHERE status IN ('SUCCESS', 'COMPLETED') " +
+           "AND created_at BETWEEN :startDate AND :endDate",
+           nativeQuery = true)
+    BigDecimal calculateTotalFeesByDateRange(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
+    );
+
+    /**
+     * Calculate average transaction amount
+     */
+    @Query(value = "SELECT COALESCE(AVG(amount), 0) FROM transactions " +
+           "WHERE status IN ('SUCCESS', 'COMPLETED') " +
+           "AND created_at BETWEEN :startDate AND :endDate",
+           nativeQuery = true)
+    BigDecimal calculateAverageAmountByDateRange(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate
     );
 }
