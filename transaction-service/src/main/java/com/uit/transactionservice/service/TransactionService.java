@@ -897,7 +897,7 @@ public class TransactionService {
             updateTransactionLimit(transaction.getSenderAccountId(), totalAmount);
 
             // Send notification that transfer is being processed
-            sendTransactionNotification(transaction, "ExternalTransferInitiated", false,1);
+            //sendTransactionNotification(transaction, "ExternalTransferInitiated", false,1);
             
             // Centralized Audit Log
             AuditEventDto auditEvent = AuditEventDto.builder()
