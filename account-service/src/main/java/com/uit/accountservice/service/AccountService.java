@@ -5,6 +5,7 @@ import com.uit.accountservice.dto.AccountDto;
 import com.uit.accountservice.dto.request.CreateAccountRequest;
 import com.uit.accountservice.dto.request.SendSmsOtpRequest;
 import com.uit.accountservice.dto.request.TransferRequest;
+import com.uit.accountservice.dto.response.AccountStatisticsResponse;
 import com.uit.accountservice.dto.response.ChallengeResponse;
 import com.uit.accountservice.dto.response.UserResponse;
 import com.uit.accountservice.entity.Account;
@@ -1028,15 +1029,38 @@ public class AccountService {
     @Transactional
     public void adminUpdatePin(String accountId, String newPin) {
         validatePinFormat(newPin);
-        
+
         Account account = accountRepository.findById(accountId)
                 .orElseThrow(() -> new AppException(ErrorCode.ACCOUNT_NOT_FOUND));
 
         // Admin can set/update PIN without old PIN verification
         account.setPinHash(passwordEncoder.encode(newPin));
         accountRepository.save(account);
-        
+
         log.info("Admin updated PIN for account: {}", accountId);
+    }
+
+    /**
+     * Get account statistics for dashboard
+     * Called by transaction-service via internal endpoint
+     */
+    public AccountStatisticsResponse getAccountStatistics() {
+        log.info("Fetching account statistics for dashboard");
+
+        Long totalAccounts = accountRepository.count();
+        Long activeAccounts = accountRepository.countByStatus(AccountStatus.ACTIVE);
+        Long lockedAccounts = accountRepository.countByStatus(AccountStatus.LOCKED);
+        Long closedAccounts = accountRepository.countByStatus(AccountStatus.CLOSED);
+
+        log.info("Account statistics - Total: {}, Active: {}, Locked: {}, Closed: {}",
+                totalAccounts, activeAccounts, lockedAccounts, closedAccounts);
+
+        return AccountStatisticsResponse.builder()
+                .totalAccounts(totalAccounts)
+                .activeAccounts(activeAccounts)
+                .lockedAccounts(lockedAccounts)
+                .closedAccounts(closedAccounts)
+                .build();
     }
 
 }
