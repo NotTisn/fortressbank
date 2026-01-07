@@ -1,0 +1,10 @@
+# Local development profile for config-server
+server:
+  port: 8889
+
+spring:
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: classpath:/configurations

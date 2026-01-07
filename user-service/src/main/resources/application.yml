@@ -1,12 +1,27 @@
+server:
+  port: ${SERVER_PORT:4000}
+
 spring:
   application:
     name: user-service
   cloud:
     config:
       uri: ${SPRING_CLOUD_CONFIG_URI:http://localhost:8889}
+      enabled: ${SPRING_CLOUD_CONFIG_ENABLED:false}
+
+  # Database Configuration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/userdb}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
   flyway:
     enabled: true
     baseline-on-migrate: true
@@ -25,7 +40,7 @@ spring:
 #   clientSecret: XLODsjH5G3f9iqGftbrkdHeNw3NVfNdZ
 
 keycloak:
-  auth-server-url: http://keycloak:8080
+  auth-server-url: ${KEYCLOAK_AUTH_SERVER_URL:http://localhost:8888}
   realm: fortressbank-realm
   clientId: kong
   clientSecret: pmFStZwGO8sb0mBDkZmP5niE3wmEELqe
@@ -38,4 +53,4 @@ fortress-bank:
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://discovery:8761/eureka
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}

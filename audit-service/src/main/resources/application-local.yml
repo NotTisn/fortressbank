@@ -1,0 +1,21 @@
+# Local development profile - overrides Docker hostnames with localhost
+spring:
+  config:
+    import: optional:configserver:http://localhost:8889
+  cloud:
+    config:
+      uri: http://localhost:8889
+  datasource:
+    url: jdbc:postgresql://localhost:5436/auditdb
+    username: postgres
+    password: "123456"
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/

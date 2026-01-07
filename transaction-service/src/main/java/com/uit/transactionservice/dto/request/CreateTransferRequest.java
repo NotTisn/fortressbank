@@ -34,4 +34,16 @@ public class CreateTransferRequest {
     private TransactionType transactionType;
 
     private String description;
+
+    /**
+     * Device fingerprint for risk assessment (optional).
+     * Used to detect new/suspicious devices.
+     */
+    private String deviceFingerprint;
+
+    /**
+     * Client IP address for risk assessment (optional).
+     * Populated by the API gateway or controller.
+     */
+    private String ipAddress;
 }

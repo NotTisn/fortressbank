@@ -32,6 +32,11 @@ public enum ErrorCode {
     OTP_NOT_FOUND(404, "OTP data not found or already used", HttpStatus.NOT_FOUND),
     OTP_RESEND_COOLDOWN(429, "Resend OTP cooldown period has not passed", HttpStatus.TOO_MANY_REQUESTS),
 
+    /* TOTP (Smart OTP) */
+    TOTP_NOT_ENROLLED(404, "Smart OTP not enrolled", HttpStatus.NOT_FOUND),
+    TOTP_ALREADY_ACTIVE(409, "Smart OTP is already active", HttpStatus.CONFLICT),
+    TOTP_LOCKED_OUT(429, "Smart OTP temporarily locked due to failed attempts", HttpStatus.TOO_MANY_REQUESTS),
+
     /* Forgot Password */
     OTP_EXPIRED_OR_NOT_FOUND(400, "OTP has expired or was not found", HttpStatus.BAD_REQUEST),
     MAX_OTP_ATTEMPTS_EXCEEDED(400, "Maximum OTP verification attempts exceeded", HttpStatus.BAD_REQUEST),

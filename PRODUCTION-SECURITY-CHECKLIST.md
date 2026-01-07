@@ -367,6 +367,75 @@ done
 
 ---
 
+## 11. MOBILE APP SECURITY (January 2026)
+
+### 11.1 Storage Security
+
+- [ ] Expo SecureStore used for all sensitive data (not AsyncStorage)
+- [ ] No hardcoded secrets in JavaScript bundle
+- [ ] No sensitive data in Redux/state that persists to disk
+- [ ] API keys loaded from environment/secure config
+
+### 11.2 Cryptographic Security
+
+- [ ] RSA-2048 minimum key size for device keypairs
+- [ ] Private keys stored in platform secure enclave
+- [ ] Biometric required to access signing operations
+- [ ] No weak/predictable random number generation
+
+### 11.3 Network Security
+
+- [ ] SSL certificate pinning enabled for production
+- [ ] No HTTP (plaintext) allowed, HTTPS only
+- [ ] Certificate chain validated
+- [ ] Network Security Config (Android) / ATS (iOS) properly configured
+
+### 11.4 Authentication Security
+
+- [ ] Biometric authentication uses hardware-backed keys
+- [ ] Failed attempt tracking and lockout implemented
+- [ ] Session timeout on app background
+- [ ] Secure logout clears all sensitive data
+
+### 11.5 Code Protection
+
+- [ ] Hermes bytecode enabled (obfuscation)
+- [ ] ProGuard/R8 enabled for Android
+- [ ] Remove all console.log in production
+- [ ] `__DEV__` checks for debug-only features
+- [ ] Root/jailbreak detection implemented (recommended)
+- [ ] Debugger detection implemented (recommended)
+
+### 11.6 Screen Security
+
+- [ ] Screenshot prevention on sensitive screens (recommended)
+- [ ] Screen recording prevention (recommended)
+- [ ] Background app snapshot redaction (recommended)
+
+### 11.7 Input Validation
+
+- [ ] Client-side validation matches backend validation
+- [ ] XSS patterns rejected
+- [ ] Input length limits enforced
+- [ ] Clipboard auto-clear for sensitive data (recommended)
+
+### 11.8 OWASP Mobile Top 10 Compliance
+
+| OWASP ID | Risk | Status |
+|----------|------|--------|
+| M1 | Improper Platform Usage | ✅ Uses platform security APIs |
+| M2 | Insecure Data Storage | ✅ SecureStore everywhere |
+| M3 | Insecure Communication | ⚠️ Cert pinning recommended |
+| M4 | Insecure Authentication | ✅ JWT + biometric gating |
+| M5 | Insufficient Cryptography | ✅ RSA-2048, proper keys |
+| M6 | Insecure Authorization | ✅ Backend-enforced |
+| M7 | Client Code Quality | ✅ TypeScript, error handling |
+| M8 | Code Tampering | ⚠️ Root detection recommended |
+| M9 | Reverse Engineering | ⚠️ Obfuscation recommended |
+| M10 | Extraneous Functionality | ✅ No debug in prod |
+
+---
+
 ## SIGN-OFF
 
 | Role | Name | Date | Signature |

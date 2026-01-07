@@ -12,11 +12,13 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Map;
+import java.util.HashMap;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -38,25 +40,20 @@ public class AccountController {
 
     @GetMapping("/my-accounts")
     @RequireRole("user")
-    public ApiResponse<Map<String, Object>> getMyAccountsWithUserInfo(HttpServletRequest request) {
-        @SuppressWarnings("unchecked")
-        Map<String, Object> userInfo = (Map<String, Object>) request.getAttribute("userInfo");
-        String userId = null;
-        if (userInfo != null && userInfo.get("sub") != null) {
-            userId = (String) userInfo.get("sub");
-        } else {
-            // Fallback to SecurityContext (when gateway doesn't set request attribute)
-            var authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null) {
-                userId = authentication.getName();
-            }
-        }
-
-        if (userId == null) {
+    public ApiResponse<Map<String, Object>> getMyAccountsWithUserInfo(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) {
             throw new com.uit.sharedkernel.exception.AppException(com.uit.sharedkernel.exception.ErrorCode.FORBIDDEN, "User not authenticated");
         }
-
+        
+        String userId = jwt.getSubject();
         List<AccountDto> accounts = accountService.getAccountsByUserId(userId);
+
+        // Build user info from JWT claims
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("sub", jwt.getSubject());
+        userInfo.put("name", jwt.getClaimAsString("name"));
+        userInfo.put("email", jwt.getClaimAsString("email"));
+        userInfo.put("preferred_username", jwt.getClaimAsString("preferred_username"));
 
         return ApiResponse.success(Map.of(
             "message", "Your accounts",
@@ -67,7 +64,7 @@ public class AccountController {
 
     @GetMapping("/dashboard")
     @RequireRole("admin")  // Like requireRole('admin') in Express
-    public ApiResponse<Map<String, Object>> getDashboard(HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> getDashboard() {
         return ApiResponse.success(Map.of(
             "message", "Admin Dashboard",
             "stats", Map.of("totalUsers", 42, "totalAccounts", 100)
@@ -204,26 +201,17 @@ public class AccountController {
     @PostMapping()
     public ResponseEntity<ApiResponse<AccountDto>> createAccount(
         @Valid @RequestBody CreateAccountRequest request,
-        HttpServletRequest httpRequest
+        @AuthenticationPrincipal Jwt jwt
     ) {
-        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-        String fullName = null;
-
-        try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> userInfo = (Map<String, Object>) httpRequest.getAttribute("userInfo");
-            if (userInfo != null) {
-                if (userInfo.containsKey("name")) {
-                    fullName = (String) userInfo.get("name");
-                } 
-                else if (userInfo.containsKey("given_name")) {
-                    fullName = (String) userInfo.get("given_name");
-                }
-            }
-        } catch (Exception e) {
-            // Ignore error parsing name, service will handle fallback
+        String userId = jwt.getSubject();
+        
+        // Get full name from JWT claims - try 'name' first, then 'given_name'
+        String fullName = jwt.getClaimAsString("name");
+        if (fullName == null) {
+            fullName = jwt.getClaimAsString("given_name");
         }
-        AccountDto newAccount = accountService.createAccount(getCurrentUserId(), request, fullName);
+        
+        AccountDto newAccount = accountService.createAccount(userId, request, fullName);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(newAccount));
     }

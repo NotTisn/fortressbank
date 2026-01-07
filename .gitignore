@@ -29,6 +29,11 @@ risk-engine/target/
 user-service/target/
 keycloak-extensions/target/
 audit-service/target/
+transaction-service/target/
+reference-service/target/
+discovery/target/
+config-server/target/
+shared-kernel/target/
 backup-service/target/
 
 # IntelliJ IDEA files
@@ -71,4 +76,10 @@ bootstrap.yml
 
 notification-service/src/main/resources/application.yml
 
-audit-service/target
+target/
+# Security test tokens
+access_token.txt
+
+# Temp/debug files
+_*.txt
+infrastructure/_*.txt

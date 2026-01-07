@@ -53,6 +53,10 @@ stripe:
 jwt:
   issuer-uri: http://localhost:8888/realms/test-realm
 
+# JWT disabled for tests - uses permissive mock decoder (see JwtConfig.java)
+jwt:
+  enabled: false
+
 eureka:
   client:
     enabled: false

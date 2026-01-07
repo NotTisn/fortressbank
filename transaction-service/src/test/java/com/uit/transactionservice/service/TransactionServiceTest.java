@@ -9,7 +9,6 @@ import com.uit.transactionservice.client.AccountServiceClient;
 import com.uit.transactionservice.client.RiskEngineClient;
 import com.uit.transactionservice.client.dto.AccountBalanceResponse;
 import com.uit.transactionservice.client.dto.InternalTransferResponse;
-import com.uit.transactionservice.client.dto.RiskAssessmentRequest;
 import com.uit.transactionservice.client.dto.RiskAssessmentResponse;
 import com.uit.transactionservice.dto.request.CreateTransferRequest;
 import com.uit.transactionservice.dto.response.TransactionResponse;
@@ -179,7 +178,7 @@ class TransactionServiceTest {
 
         when(accountServiceClient.getAccountByNumber("1234567890")).thenReturn(senderInfo);
         when(accountServiceClient.getAccountByNumber("9876543210")).thenReturn(receiverInfo);
-        when(riskEngineClient.assessRisk(any(RiskAssessmentRequest.class))).thenReturn(lowRiskResponse);
+        when(riskEngineClient.assessTransactionRisk(anyString(), any(BigDecimal.class), any(), any(), any())).thenReturn(lowRiskResponse);
         when(transactionRepository.save(any(Transaction.class))).thenReturn(testTransaction);
         when(transactionMapper.toResponse(any(Transaction.class))).thenReturn(testTransactionResponse);
         when(otpService.generateOTP()).thenReturn("123456");
@@ -194,7 +193,7 @@ class TransactionServiceTest {
         
         verify(accountServiceClient).getAccountByNumber("1234567890");
         verify(accountServiceClient).getAccountByNumber("9876543210");
-        verify(riskEngineClient).assessRisk(any(RiskAssessmentRequest.class));
+        verify(riskEngineClient).assessTransactionRisk(anyString(), any(BigDecimal.class), any(), any(), any());
         verify(transactionRepository).save(any(Transaction.class));
         verify(otpService).generateOTP();
         verify(otpService).saveOTP(any(UUID.class), eq("123456"), eq("+84901234567"));
@@ -223,7 +222,7 @@ class TransactionServiceTest {
 
         when(accountServiceClient.getAccountByNumber("1234567890")).thenReturn(senderInfo);
         when(accountServiceClient.getAccountByNumber("9876543210")).thenReturn(receiverInfo);
-        when(riskEngineClient.assessRisk(any(RiskAssessmentRequest.class))).thenReturn(highRiskResponse);
+        when(riskEngineClient.assessTransactionRisk(anyString(), any(BigDecimal.class), any(), any(), any())).thenReturn(highRiskResponse);
         when(transactionRepository.save(any(Transaction.class))).thenReturn(testTransaction);
         when(transactionMapper.toResponse(any(Transaction.class))).thenReturn(testTransactionResponse);
 
@@ -235,7 +234,7 @@ class TransactionServiceTest {
         assertThat(response.getStatus()).isEqualTo(TransactionStatus.PENDING_FACE_AUTH);
         assertThat(response.isRequireFaceAuth()).isTrue();
         
-        verify(riskEngineClient).assessRisk(any(RiskAssessmentRequest.class));
+        verify(riskEngineClient).assessTransactionRisk(anyString(), any(BigDecimal.class), any(), any(), any());
         verify(otpService, never()).generateOTP(); // OTP not generated for HIGH risk until FaceAuth
     }
 

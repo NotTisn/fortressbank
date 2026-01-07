@@ -9,8 +9,14 @@ import com.uit.sharedkernel.exception.AppException;
 import com.uit.sharedkernel.exception.ErrorCode;
 import com.uit.sharedkernel.notification.NotificationEventPublisher;
 import com.uit.transactionservice.client.AccountServiceClient;
+import com.uit.transactionservice.client.RiskEngineClient;
+import com.uit.transactionservice.client.UserServiceClient;
 import com.uit.transactionservice.client.dto.AccountBalanceResponse;
 import com.uit.transactionservice.client.dto.InternalTransferResponse;
+import com.uit.transactionservice.client.dto.RiskAssessmentResponse;
+import com.uit.transactionservice.client.dto.SmartOtpChallengeResponse;
+import com.uit.transactionservice.client.dto.SmartOtpStatusResponse;
+import com.uit.transactionservice.client.dto.SmartOtpVerifyResponse;
 import com.uit.transactionservice.dto.request.CreateTransferRequest;
 import com.uit.transactionservice.dto.response.TransactionResponse;
 import com.uit.transactionservice.entity.*;
@@ -35,9 +41,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.uit.sharedkernel.dto.*;
 import com.uit.transactionservice.dto.request.AdminDepositRequest;
-import com.uit.transactionservice.dto.request.ConfirmFaceAuthRequest;
-import com.uit.transactionservice.client.dto.RiskAssessmentRequest;
-import com.uit.transactionservice.client.dto.RiskAssessmentResponse;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -58,11 +61,12 @@ public class TransactionService {
     private final ObjectMapper objectMapper;
     private final OTPService otpService;
     private final AccountServiceClient accountServiceClient;
+    private final RiskEngineClient riskEngineClient;
+    private final UserServiceClient userServiceClient;
     private final StripeTransferService stripeTransferService;
     private final TransactionSseService sseService;
     private final AuditEventPublisher auditEventPublisher;
     private final NotificationEventPublisher notificationEventPublisher;
-    private final com.uit.transactionservice.client.RiskEngineClient riskEngineClient;
     
     /**
      * Handle SePay webhook for Top-up (Deposit)
@@ -209,8 +213,7 @@ public class TransactionService {
                 .receiverAccountId(accountId)
                 .receiverAccountNumber(request.getAccountNumber())
                 .receiverUserId(userId)
-                .senderAccountId("admin")
-                .senderUserId("admin")
+                .senderUserId(null)
                 .amount(request.getAmount())
                 .feeAmount(BigDecimal.ZERO)
                 .transactionType(TransactionType.DEPOSIT)
@@ -276,7 +279,6 @@ public class TransactionService {
         log.info("Creating transfer from {} to {} with OTP", request.getSenderAccountNumber(), request.getReceiverAccountNumber());
 
         String senderUserId = null;
-        String senderAccountId = null;
 
         // 1. Validate Sender Account Exists (Always)
         try {
@@ -285,16 +287,11 @@ public class TransactionService {
                  throw new AppException(ErrorCode.ACCOUNT_NOT_FOUND, "Sender account not found: " + request.getSenderAccountNumber());
             }
 
-            Object senderAccountIdObj = senderInfo.get("accountId");
-            if (senderAccountIdObj != null) {
-                senderAccountId = senderAccountIdObj.toString();
-            }
-
             Object senderUserIdObj = senderInfo.get("userId");
             if (senderUserIdObj != null) {
                 senderUserId = senderUserIdObj.toString();
-                log.info("Sender account validated - AccountNumber: {}, AccountId: {}, UserId: {}",
-                    request.getSenderAccountNumber(), senderAccountId, senderUserId);
+                log.info("Sender account validated - AccountNumber: {}, UserId: {}",
+                    request.getSenderAccountNumber(), senderUserId);
             } else {
                 log.warn("Sender account has no userId: {}", request.getSenderAccountNumber());
             }
@@ -347,40 +344,96 @@ public class TransactionService {
         }
 
         // 3. Check transaction limit using Sender Account ID
-        checkTransactionLimit(senderAccountId, request.getAmount());
+        checkTransactionLimit(request.getSenderAccountId(), request.getAmount());
 
-        // 4. Perform Risk Assessment
-        log.info("Performing risk assessment for User: {} - Amount: {}", userId, request.getAmount());
-        boolean requireFaceAuth = false;
-        try {
-            RiskAssessmentRequest riskRequest = RiskAssessmentRequest.builder()
-                    .userId(userId)
-                    .amount(request.getAmount())
-                    .payeeId(receiverAccountNumber)
-                    .build();
-            
-            RiskAssessmentResponse riskResponse = riskEngineClient.assessRisk(riskRequest);
-            
-            log.info("Risk Level: {} - Challenge: {}", riskResponse.getRiskLevel(), riskResponse.getChallengeType());
-            
-            if ("HIGH".equals(riskResponse.getRiskLevel())) {
-                requireFaceAuth = true;
-                log.warn("High risk detected! Transaction {} will require FaceID authentication.", request.getSenderAccountNumber());
+        // 4. Assess transaction risk (calls risk-engine)
+        RiskAssessmentResponse riskAssessment = riskEngineClient.assessTransactionRisk(
+                userId,
+                request.getAmount(),
+                request.getDeviceFingerprint(),  // From request if available
+                request.getIpAddress(),          // From request if available
+                null                              // Location (future)
+        );
+        
+        String challengeType = riskAssessment.getChallengeType();
+        String riskLevel = riskAssessment.getRiskLevel();
+        Integer riskScore = riskAssessment.getRiskScore();
+        
+        log.info("Risk assessment complete: level={} score={} challengeType={}", 
+                riskLevel, riskScore, challengeType);
+        
+        // 4a. Map risk-engine challenge types to Vietnamese e-banking style
+        // SMS_OTP (MEDIUM risk) → DEVICE_BIO (fingerprint/PIN signs challenge)
+        // SMART_OTP (HIGH risk) → FACE_VERIFY (face re-verification)
+        String mappedChallengeType = challengeType;
+        if ("SMART_OTP".equals(challengeType)) {
+            // HIGH risk: Check if user has face registered
+            SmartOtpStatusResponse status = userServiceClient.getSmartOtpStatus(userId);
+            if (status.isHasFace()) {
+                mappedChallengeType = "FACE_VERIFY";
+            } else if (status.isHasDevice()) {
+                // Fallback to device bio if no face
+                mappedChallengeType = "DEVICE_BIO";
+                log.warn("User {} requires FACE_VERIFY but has no face registered. Using DEVICE_BIO", userId);
+            } else {
+                // No biometric available, fall back to SMS OTP
+                mappedChallengeType = "SMS_OTP";
+                log.warn("User {} has no biometric capability. Falling back to SMS_OTP", userId);
             }
-        } catch (Exception e) {
-            log.error("Risk assessment failed, falling back to standard OTP: {}", e.getMessage());
+        } else if ("SMS_OTP".equals(challengeType)) {
+            // MEDIUM risk: Check if user has device registered
+            SmartOtpStatusResponse status = userServiceClient.getSmartOtpStatus(userId);
+            if (status.isHasDevice()) {
+                mappedChallengeType = "DEVICE_BIO";
+            } else {
+                // No device available, keep SMS OTP
+                log.info("User {} has no device registered. Using SMS_OTP", userId);
+            }
         }
+        challengeType = mappedChallengeType;
 
         // 5. Fee is temporarily set to ZERO (no transaction fee for now)
         BigDecimal fee = BigDecimal.ZERO;
 
-        // 6. Create transaction
+        // 6. Determine transaction status based on challenge type
+        TransactionStatus initialStatus;
+        if ("NONE".equals(challengeType)) {
+            initialStatus = TransactionStatus.PENDING;  // Will execute immediately
+        } else if ("DEVICE_BIO".equals(challengeType) || "FACE_VERIFY".equals(challengeType)) {
+            initialStatus = TransactionStatus.PENDING_SMART_OTP;  // Smart OTP verification pending
+        } else {
+            initialStatus = TransactionStatus.PENDING_OTP;  // Default: SMS_OTP
+        }
+
+        // 7. Create transaction with appropriate status
         String correlationId = UUID.randomUUID().toString();
+        String challengeId = null;
+        String challengeData = null;  // For DEVICE_BIO - data to sign
         
-        TransactionStatus initialStatus = requireFaceAuth ? TransactionStatus.PENDING_FACE_AUTH : TransactionStatus.PENDING_OTP;
+        // 7a. For biometric challenges, generate a challenge from user-service
+        if ("DEVICE_BIO".equals(challengeType) || "FACE_VERIFY".equals(challengeType)) {
+            SmartOtpChallengeResponse challengeResponse = userServiceClient.generateChallenge(
+                    userId, 
+                    correlationId,  // Use correlation ID as transaction reference
+                    challengeType
+            );
+            if (challengeResponse != null) {
+                challengeId = challengeResponse.getChallengeId();
+                challengeData = challengeResponse.getChallengeData();
+                log.info("Smart OTP challenge generated: challengeId={} type={}", 
+                        challengeId, challengeType);
+            } else {
+                log.error("Failed to generate Smart OTP challenge. Falling back to SMS_OTP");
+                challengeType = "SMS_OTP";
+                initialStatus = TransactionStatus.PENDING_OTP;
+            }
+        }
+        
+        // Store challengeData temporarily for response (not persisted in DB)
+        final String finalChallengeData = challengeData;
         
         Transaction transaction = Transaction.builder()
-                .senderAccountId(senderAccountId)
+                .senderAccountId(request.getSenderAccountId())
                 .senderAccountNumber(request.getSenderAccountNumber())
                 .senderUserId(senderUserId)
                 .receiverAccountNumber(request.getReceiverAccountNumber())
@@ -391,40 +444,53 @@ public class TransactionService {
                 .transactionType(request.getTransactionType())
                 .status(initialStatus)
                 .description(request.getDescription())
+                // Risk Assessment Fields
+                .riskLevel(riskLevel)
+                .riskScore(riskScore)
+                .challengeType(challengeType)
+                .challengeId(challengeId)
                 // Saga Orchestration Fields
                 .correlationId(correlationId)
                 .currentStep(com.uit.transactionservice.entity.SagaStep.STARTED)
                 .build();
         transaction = transactionRepository.save(transaction);
         
-        log.info("Transaction created with ID: {} - Status: {}", 
-                transaction.getTransactionId(), initialStatus);
+        log.info("Transaction created with ID: {} - Type: {} - Status: {} - ChallengeType: {} - ChallengeId: {}", 
+                transaction.getTransactionId(), request.getTransactionType(), initialStatus, challengeType, challengeId);
 
-        TransactionResponse response = transactionMapper.toResponse(transaction);
-        response.setRequireFaceAuth(requireFaceAuth);
+        // 8. Handle based on challenge type
+        if ("NONE".equals(challengeType)) {
+            // LOW risk: Execute transfer immediately (no OTP required)
+            log.info("LOW risk transaction - executing immediately without OTP");
+            if (transaction.isInternalTransfer()) {
+                return processInternalTransfer(transaction);
+            } else {
+                return processExternalTransfer(transaction);
+            }
+        } else if ("DEVICE_BIO".equals(challengeType)) {
+            // MEDIUM risk with device: Return transaction, client will prompt for biometric signature
+            log.info("MEDIUM risk transaction - waiting for Device Biometric verification (challengeId={})", challengeId);
+            TransactionResponse response = transactionMapper.toResponse(transaction);
+            response.setChallengeData(finalChallengeData);  // Include data to sign
+            return response;
+        } else if ("FACE_VERIFY".equals(challengeType)) {
+            // HIGH risk: Return transaction, client will prompt for face verification
+            log.info("HIGH risk transaction - waiting for Face verification (challengeId={})", challengeId);
+            return transactionMapper.toResponse(transaction);
+        } else {
+            // MEDIUM risk without device: Send SMS OTP
+            log.info("MEDIUM risk transaction - sending SMS OTP");
+            String otpCode = otpService.generateOTP();
+            log.info("Generated OTP Code: " + otpCode); // For development only
+            otpService.saveOTP(transaction.getTransactionId(), otpCode, phoneNumber);
+            
+            log.info("OTP generated and saved to Redis for transaction: {}", transaction.getTransactionId());
 
-        // 7. If FaceID is NOT required, proceed directly to OTP
-        if (!requireFaceAuth) {
-            initiateOtpProcess(transaction, phoneNumber);
+            // Send OTP SMS via event (notification-service will handle)
+            sendOTPNotification(transaction.getTransactionId(), phoneNumber, otpCode);
+
+            return transactionMapper.toResponse(transaction);
         }
-
-        return response;
-    }
-
-    /**
-     * Logic to generate, save and send OTP.
-     * Reusable for both standard flow and post-FaceID flow.
-     */
-    private void initiateOtpProcess(Transaction transaction, String phoneNumber) {
-        // Generate and save OTP to Redis
-        String otpCode = otpService.generateOTP();
-        log.info("Generated OTP Code for Tx {}: {}", transaction.getTransactionId(), otpCode); 
-        
-        otpService.saveOTP(transaction.getTransactionId(), otpCode, phoneNumber);
-        
-        // Send OTP notification
-        sendOTPNotification(transaction.getTransactionId(), phoneNumber, otpCode);
-        log.info("OTP process initiated for transaction: {}", transaction.getTransactionId());
     }
 
     /**
@@ -648,7 +714,9 @@ public class TransactionService {
     }
 
     /**
-     * Verify OTP and route to appropriate transfer handler
+     * Verify OTP and route to appropriate transfer handler.
+     * Supports SMS_OTP verification only.
+     * For DEVICE_BIO and FACE_VERIFY, use verifyDeviceSignature() and verifyFace() respectively.
      */
     @Transactional
     public TransactionResponse verifyOTP(UUID transactionId, String otpCode) {
@@ -658,16 +726,137 @@ public class TransactionService {
         Transaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));
 
-       
-        // 2. Check transaction status
+        // 2. Check transaction status and determine verification type
+        String challengeType = transaction.getChallengeType();
+        
+        if ("DEVICE_BIO".equals(challengeType) || "FACE_VERIFY".equals(challengeType)) {
+            throw new AppException(ErrorCode.BAD_REQUEST, 
+                    "This transaction requires biometric verification, not OTP. Use appropriate endpoint.");
+        }
+        
+        // SMS_OTP verification
         if (transaction.getStatus() != TransactionStatus.PENDING_OTP) {
             throw new RuntimeException("Transaction is not pending OTP verification");
         }
+        return verifySmsOTP(transaction, otpCode);
+    }
 
-        // 3. Verify OTP using OTPService
+    /**
+     * Verify device biometric signature (DEVICE_BIO challenge).
+     * Called for MEDIUM risk transactions when user has a registered device.
+     * 
+     * @param transactionId Transaction ID
+     * @param deviceId Device that signed the challenge
+     * @param signatureBase64 Base64-encoded signature of the challenge data
+     * @return Transaction response
+     */
+    @Transactional
+    public TransactionResponse verifyDeviceSignature(UUID transactionId, String deviceId, String signatureBase64) {
+        log.info("Verifying device signature for transaction: {} device: {}", transactionId, deviceId);
+
+        // 1. Find transaction
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
+
+        // 2. Validate state
+        if (transaction.getStatus() != TransactionStatus.PENDING_SMART_OTP) {
+            throw new AppException(ErrorCode.TRANSACTION_STATUS_CONFLICT, 
+                    "Transaction is not pending biometric verification");
+        }
+        
+        if (!"DEVICE_BIO".equals(transaction.getChallengeType())) {
+            throw new AppException(ErrorCode.BAD_REQUEST, 
+                    "This transaction requires " + transaction.getChallengeType() + " verification");
+        }
+
+        String challengeId = transaction.getChallengeId();
+        if (challengeId == null) {
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION, "No challenge ID found for transaction");
+        }
+
+        // 3. Verify device signature via user-service
+        SmartOtpVerifyResponse result = userServiceClient.verifyDeviceSignature(
+                challengeId,
+                deviceId,
+                signatureBase64
+        );
+
+        if (!result.isValid()) {
+            log.warn("Invalid device signature for transaction: {}. Reason: {}", transactionId, result.getMessage());
+            throw new AppException(ErrorCode.INVALID_OTP, "Device verification failed: " + result.getMessage());
+        }
+
+        // 4. Verification successful - proceed with transaction
+        transaction.setStatus(TransactionStatus.PENDING);
+        transaction.setCurrentStep(SagaStep.OTP_VERIFIED);
+        transaction = transactionRepository.save(transaction);
+        log.info("Device signature verified successfully - Transaction: {} moved to PENDING status", transactionId);
+
+        // Route to appropriate handler based on transfer type
+        if (transaction.isInternalTransfer()) {
+            return processInternalTransfer(transaction);
+        } else {
+            return processExternalTransfer(transaction);
+        }
+    }
+
+    /**
+     * Verify face for high-risk transactions (FACE_VERIFY challenge).
+     * This method is called by a controller that handles multipart face image upload.
+     * The actual face verification is delegated to user-service which uses fbank-ai.
+     * 
+     * @param transactionId Transaction ID
+     * @param faceVerified Whether face verification passed (pre-verified by controller calling user-service)
+     * @return Transaction response
+     */
+    @Transactional
+    public TransactionResponse completeFaceVerification(UUID transactionId, boolean faceVerified) {
+        log.info("Completing face verification for transaction: {} verified: {}", transactionId, faceVerified);
+
+        // 1. Find transaction
+        Transaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
+
+        // 2. Validate state
+        if (transaction.getStatus() != TransactionStatus.PENDING_SMART_OTP) {
+            throw new AppException(ErrorCode.TRANSACTION_STATUS_CONFLICT, 
+                    "Transaction is not pending biometric verification");
+        }
+        
+        if (!"FACE_VERIFY".equals(transaction.getChallengeType())) {
+            throw new AppException(ErrorCode.BAD_REQUEST, 
+                    "This transaction requires " + transaction.getChallengeType() + " verification");
+        }
+
+        if (!faceVerified) {
+            log.warn("Face verification failed for transaction: {}", transactionId);
+            throw new AppException(ErrorCode.INVALID_OTP, "Face verification failed");
+        }
+
+        // 3. Verification successful - proceed with transaction
+        transaction.setStatus(TransactionStatus.PENDING);
+        transaction.setCurrentStep(SagaStep.OTP_VERIFIED);
+        transaction = transactionRepository.save(transaction);
+        log.info("Face verified successfully - Transaction: {} moved to PENDING status", transactionId);
+
+        // Route to appropriate handler based on transfer type
+        if (transaction.isInternalTransfer()) {
+            return processInternalTransfer(transaction);
+        } else {
+            return processExternalTransfer(transaction);
+        }
+    }
+
+    /**
+     * Verify SMS OTP (existing flow)
+     */
+    private TransactionResponse verifySmsOTP(Transaction transaction, String otpCode) {
+        UUID transactionId = transaction.getTransactionId();
+        
+        // Verify OTP using OTPService
         OTPService.OTPVerificationResult result = otpService.verifyOTP(transactionId, otpCode);
 
-        // 4. Handle verification result
+        // Handle verification result
         if (!result.isSuccess()) {
             if (result.getMessage().contains("expired")) {
                 transaction.setStatus(TransactionStatus.OTP_EXPIRED);
@@ -680,23 +869,22 @@ public class TransactionService {
                 transaction = transactionRepository.save(transaction);
                 log.warn("Maximum OTP attempts reached for transaction: {}", transactionId);
             } else {
-
-        log.warn("User entered invalid OTP for transaction: {}. {}", transactionId, result.getMessage());
-        throw new AppException(ErrorCode.INVALID_OTP);
-    }
+                log.warn("User entered invalid OTP for transaction: {}. {}", transactionId, result.getMessage());
+                throw new AppException(ErrorCode.INVALID_OTP);
+            }
             
             // Return response with failure reason instead of throwing exception
             return transactionMapper.toResponse(transaction);
         }
 
-        // 5. Update transaction status to PENDING (OTP verified, processing payment)
+        // Update transaction status to PENDING (OTP verified, processing payment)
         transaction.setStatus(TransactionStatus.PENDING);
         transaction.setCurrentStep(SagaStep.OTP_VERIFIED);
         transaction = transactionRepository.save(transaction);
-        log.info("OTP verified successfully - Transaction: {} moved to PENDING status", transactionId);
+        log.info("SMS OTP verified successfully - Transaction: {} moved to PENDING status", transactionId);
 
-        // 6. Route to appropriate handler based on transfer type
-        log.info("transaction type:" + transaction.getTransactionType() );
+        // Route to appropriate handler based on transfer type
+        log.info("Transaction type: {}", transaction.getTransactionType());
         if (transaction.isInternalTransfer()) {
             return processInternalTransfer(transaction);
         } else {
@@ -811,7 +999,7 @@ public class TransactionService {
         BigDecimal totalAmount = transaction.getAmount();
         
         try {
-
+            // Step 1: Debit sender account first (sync)
             log.info("Step 1: Debiting sender account {} - Amount: {}", 
                     transaction.getSenderAccountId(), totalAmount);
             
@@ -1247,34 +1435,48 @@ public class TransactionService {
                 .build();
         auditEventPublisher.publishAuditEvent(auditEvent);
     }
-     
+
+    /**
+     * Confirm face authentication for a transaction.
+     * Called after user completes face verification in mobile app.
+     * 
+     * @param request Contains transactionId and phoneNumber
+     */
     @Transactional
-    public void confirmFaceAuth(ConfirmFaceAuthRequest request) {
-        UUID transactionId = request.getTransactionId();
-        log.info("Confirming FaceID authentication for transaction: {}", transactionId);
+    public void confirmFaceAuth(com.uit.transactionservice.dto.request.ConfirmFaceAuthRequest request) {
+        log.info("Confirming face authentication for transaction: {}", request.getTransactionId());
         
-        Transaction transaction = transactionRepository.findById(transactionId)
-                .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND));
+        Transaction transaction = transactionRepository.findById(request.getTransactionId())
+                .orElseThrow(() -> new AppException(ErrorCode.TRANSACTION_NOT_FOUND, 
+                        "Transaction not found: " + request.getTransactionId()));
         
-        if (transaction.getStatus() != TransactionStatus.PENDING_FACE_AUTH) {
-            log.error("Invalid transaction status for FaceID confirmation: {}", transaction.getStatus());
-            throw new AppException(ErrorCode.TRANSACTION_STATUS_CONFLICT, "Transaction is not pending FaceID authentication");
+        // Validate transaction is in correct state
+        if (transaction.getStatus() != TransactionStatus.PENDING_SMART_OTP) {
+            throw new AppException(ErrorCode.TRANSACTION_STATUS_CONFLICT,
+                    "Transaction is not pending face authentication. Current status: " + transaction.getStatus());
         }
         
-        // Update status to PENDING_OTP
-        transaction.setStatus(TransactionStatus.PENDING_OTP);
+        // TODO: Optionally verify face auth was actually completed via fbank-ai service
+        // For MVP, we trust the frontend to only call this after successful face verification
+        log.info("Face authentication confirmed for transaction: {}", request.getTransactionId());
+        
+        // Update status and execute the transfer
+        transaction.setStatus(TransactionStatus.PENDING);
+        transaction.setCurrentStep(SagaStep.OTP_VERIFIED);
         transactionRepository.save(transaction);
         
-        // Use phone number from request (provided by User Service)
-        String phoneNumber = request.getPhoneNumber();
-        if (phoneNumber == null || phoneNumber.isEmpty()) {
-             // Fallback for safety
-             phoneNumber = "+84857311444";
-             log.warn("No phone number provided in FaceAuth confirmation, using default: {}", phoneNumber);
+        // Execute the transfer
+        try {
+            if (transaction.getTransactionType() == TransactionType.INTERNAL_TRANSFER) {
+                processInternalTransfer(transaction);
+            } else if (transaction.getTransactionType() == TransactionType.EXTERNAL_TRANSFER) {
+                processExternalTransfer(transaction);
+            }
+        } catch (Exception e) {
+            log.error("Transfer execution failed after face auth - TxID: {}", 
+                    transaction.getTransactionId(), e);
+            throw new AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Transfer failed: " + e.getMessage());
         }
-        
-        initiateOtpProcess(transaction, phoneNumber);
-        
-        log.info("FaceID confirmed. Transaction {} moved to PENDING_OTP.", transactionId);
     }
+
 }

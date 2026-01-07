@@ -1,3 +1,6 @@
+server:
+  port: ${SERVER_PORT:4005}
+
 spring:
   application:
     name: audit-service
@@ -6,6 +9,23 @@ spring:
   cloud:
     config:
       fail-fast: false
+      enabled: ${SPRING_CLOUD_CONFIG_ENABLED:false}
+
+  # Database Configuration
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5436/auditdb}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    # Exclude outbox entities since audit-service doesn't need them
+    mapping-resources:
 
   flyway:
     enabled: true
@@ -16,10 +36,6 @@ spring:
   sql:
     init:
       mode: never
-
-  jpa:
-    # Exclude outbox entities since audit-service doesn't need them
-    mapping-resources:
 
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
@@ -34,7 +50,7 @@ outbox:
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://discovery:8761/eureka
+      defaultZone: ${EUREKA_CLIENT_SERVICEURL_DEFAULTZONE:http://localhost:8761/eureka/}
     registerWithEureka: true
     fetchRegistry: true
 

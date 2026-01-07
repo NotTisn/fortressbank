@@ -1,0 +1,42 @@
+# Local development profile - overrides Docker hostnames
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://localhost:8888/realms/fortressbank-realm/protocol/openid-connect/certs
+
+  datasource:
+    url: jdbc:postgresql://localhost:5435/transactiondb
+    username: postgres
+    password: "123456"
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
+keycloak:
+  auth-server-url: http://localhost:8888
+
+# JWT Configuration for local development
+# When running locally, both JWKS and issuer are from localhost:8888
+jwt:
+  jwk-set-uri: http://localhost:8888/realms/fortressbank-realm/protocol/openid-connect/certs
+  expected-issuer: http://localhost:8888/realms/fortressbank-realm
+
+# Stripe - dummy keys for local dev
+stripe:
+  api-key: sk_test_dummy_key_for_local_dev
+  webhook-secret: whsec_dummy_for_local_dev

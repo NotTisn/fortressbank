@@ -302,6 +302,22 @@ public class AccountService {
             log.error("Failed to publish audit event for internal transfer: {}", e.getMessage());
         }
 
+        // Record velocity for anti-salami-slicing protection
+        // This is async/fire-and-forget - doesn't slow down the response
+        try {
+            riskEngineService.recordVelocityAsync(
+                    fromAccount.getUserId(),
+                    request.getAmount(),
+                    request.getTransactionId()
+            );
+            log.debug("Velocity recording triggered - User: {} Amount: {} TxID: {}",
+                    fromAccount.getUserId(), request.getAmount(), request.getTransactionId());
+        } catch (Exception e) {
+            // Log but don't fail the transfer - velocity tracking is non-critical
+            log.warn("Failed to trigger velocity recording - User: {} TxID: {} Error: {}",
+                    fromAccount.getUserId(), request.getTransactionId(), e.getMessage());
+        }
+
         return com.uit.accountservice.dto.response.InternalTransferResponse.builder()
                 .transactionId(request.getTransactionId())
                 .senderAccountId(request.getSenderAccountId())

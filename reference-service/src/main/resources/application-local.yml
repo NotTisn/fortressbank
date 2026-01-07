@@ -1,0 +1,15 @@
+# Local development profile - overrides Docker hostnames with localhost
+spring:
+  cloud:
+    config:
+      uri: http://localhost:8889
+  # Reference service uses H2 or no database
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/

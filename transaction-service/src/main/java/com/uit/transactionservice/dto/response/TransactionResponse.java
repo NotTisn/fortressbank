@@ -33,4 +33,8 @@ public class TransactionResponse {
     
     private String failureReason;
     private boolean requireFaceAuth;
+    
+    // Biometric verification fields (Smart OTP / Vietnamese e-banking style)
+    private String challengeType;  // NONE, SMS_OTP, DEVICE_BIO, FACE_VERIFY
+    private String challengeData;  // Random challenge for device signing
 }
