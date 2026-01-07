@@ -69,7 +69,7 @@ public class TransactionService {
      */
     @Transactional
     public void handleSepayTopup(SepayWebhookDto webhookData, String accountNumber) {
-        log.info("Processing SePay Top-up - AccountID: {} - Amount: {} - SePay Ref: {}", 
+        log.info("Processing SePay Top-up - AccountNumber: {} - Amount: {} - SePay Ref: {}", 
                 accountNumber, webhookData.getTransferAmount(), webhookData.getCode());
 
         // if (transactionRepository.existsByExternalTransactionId(webhookData.getCode())) {
@@ -84,7 +84,7 @@ public class TransactionService {
                 receiverAccountId = (String) receiverAccount.get("accountId");
                 receiverUserId = (String) receiverAccount.get("userId");
             } else {
-                throw new AppException(ErrorCode.ACCOUNT_NOT_FOUND, "Account number not found: " + accountNumber    );
+                throw new AppException(ErrorCode.ACCOUNT_NOT_FOUND, "Account number not found: " + accountNumber);
             }
         } catch (Exception e) {
             log.error("Failed to resolve account number: {}", accountNumber, e);
