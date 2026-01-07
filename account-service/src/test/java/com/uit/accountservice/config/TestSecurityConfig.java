@@ -1,8 +1,6 @@
 package com.uit.accountservice.config;
 
-import com.uit.accountservice.security.ParseUserInfoFilter;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -16,30 +14,13 @@ import static org.mockito.Mockito.when;
 
 /**
  * Test Security Configuration to override production security settings.
- * Disables ParseUserInfoFilter and provides mock JwtDecoder for testing.
+ * Provides mock JwtDecoder for testing without requiring Keycloak.
+ * 
+ * Note: ParseUserInfoFilter was removed in security/penetration-tests branch.
+ * Controllers now use @AuthenticationPrincipal Jwt jwt directly.
  */
 @TestConfiguration
 public class TestSecurityConfig {
-
-    /**
-     * Mock ParseUserInfoFilter to disable it in tests.
-     * Filter will be present but won't execute real logic.
-     */
-    @Bean
-    @Primary
-    public ParseUserInfoFilter parseUserInfoFilter() {
-        // Return a no-op filter that doesn't do anything
-        return new ParseUserInfoFilter() {
-            @Override
-            public void doFilter(jakarta.servlet.ServletRequest request, 
-                               jakarta.servlet.ServletResponse response, 
-                               jakarta.servlet.FilterChain chain)
-                    throws java.io.IOException, jakarta.servlet.ServletException {
-                // Pass through without authentication check
-                chain.doFilter(request, response);
-            }
-        };
-    }
 
     /**
      * Provides a mock JwtDecoder that returns valid test JWTs.
