@@ -93,7 +93,9 @@ public class TransactionService {
         String correlationId = UUID.randomUUID().toString();
 
         Transaction transaction = Transaction.builder()
+                .senderAccountId("SEPAY_GATEWAY") // Virtual sender ID
                 .senderAccountNumber("SEPAY_GATEWAY") // Virtual sender
+                .receiverAccountId(receiverAccountId)
                 .receiverAccountNumber(accountNumber)
                 .senderUserId(null)
                 .receiverUserId(receiverUserId)
