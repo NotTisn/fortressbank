@@ -179,6 +179,7 @@ public class AccountController {
     }
 
    @GetMapping("/{accountId}")
+    @RequireRole("user")
     public ResponseEntity<ApiResponse<AccountDto>> getAccountDetail(@PathVariable("accountId") String accountId) {
         AccountDto account = accountService.getAccountDetail(accountId, getCurrentUserId());
         return ResponseEntity.ok(ApiResponse.success(account));

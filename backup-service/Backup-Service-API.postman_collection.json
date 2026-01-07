@@ -1,0 +1,383 @@
+{
+  "info": {
+    "name": "FortressBank - Backup Service API",
+    "description": "API Collection for Backup and Restore operations in FortressBank",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Backup Operations",
+      "item": [
+        {
+          "name": "1. Create Full Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"backupType\": \"FULL\",\n  \"backupName\": \"demo_full_backup\",\n  \"compressed\": true,\n  \"encrypted\": false,\n  \"initiatedBy\": \"admin_demo\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:4006/api/backup",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "backup"]
+            },
+            "description": "Creates a full backup of all critical services (user-service, account-service, transaction-service, audit-service)"
+          },
+          "response": []
+        },
+        {
+          "name": "2. Create Single Service Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"backupType\": \"SINGLE_SERVICE\",\n  \"backupName\": \"user_service_backup\",\n  \"serviceNames\": [\"user-service\"],\n  \"compressed\": true,\n  \"encrypted\": false,\n  \"initiatedBy\": \"admin_demo\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:4006/api/backup",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "backup"]
+            },
+            "description": "Creates a backup of a single service (user-service)"
+          },
+          "response": []
+        },
+        {
+          "name": "3. Create Custom Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"backupType\": \"CUSTOM\",\n  \"backupName\": \"critical_services_backup\",\n  \"serviceNames\": [\"user-service\", \"account-service\", \"transaction-service\"],\n  \"compressed\": true,\n  \"encrypted\": false,\n  \"initiatedBy\": \"admin_demo\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:4006/api/backup",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "backup"]
+            },
+            "description": "Creates a custom backup of selected services"
+          },
+          "response": []
+        },
+        {
+          "name": "4. Get All Backups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/api/backup",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "backup"]
+            },
+            "description": "Retrieves list of all backups with metadata"
+          },
+          "response": []
+        },
+        {
+          "name": "5. Get Backup by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/api/backup/:backupId",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "backup", ":backupId"],
+              "variable": [
+                {
+                  "key": "backupId",
+                  "value": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                  "description": "UUID of the backup"
+                }
+              ]
+            },
+            "description": "Retrieves detailed information about a specific backup"
+          },
+          "response": []
+        },
+        {
+          "name": "6. Cleanup Old Backups",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/api/backup/cleanup",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "backup", "cleanup"]
+            },
+            "description": "Manually triggers cleanup of expired backups (older than retention period)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Restore Operations",
+      "item": [
+        {
+          "name": "1. Restore Full Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"backupId\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"stopServices\": true,\n  \"clearRedisCache\": true,\n  \"verifyIntegrity\": true,\n  \"initiatedBy\": \"admin_demo\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:4006/api/restore",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "restore"]
+            },
+            "description": "Restores all services from a backup. Replace backupId with actual UUID from backup response."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Restore Specific Services",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"backupId\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n  \"serviceNames\": [\"user-service\", \"account-service\"],\n  \"stopServices\": true,\n  \"clearRedisCache\": true,\n  \"verifyIntegrity\": true,\n  \"initiatedBy\": \"admin_demo\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:4006/api/restore",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "restore"]
+            },
+            "description": "Restores only specific services from a backup"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Health & Monitoring",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["actuator", "health"]
+            },
+            "description": "Checks the health status of backup-service"
+          },
+          "response": []
+        },
+        {
+          "name": "Service Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/actuator/info",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["actuator", "info"]
+            },
+            "description": "Gets service information"
+          },
+          "response": []
+        },
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/actuator/metrics",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["actuator", "metrics"]
+            },
+            "description": "Gets service metrics"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Demo Scenarios",
+      "item": [
+        {
+          "name": "DEMO 1: Create Test Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["actuator", "health"]
+            },
+            "description": "Use this as reference. Actual test data creation via SQL:\n\ndocker exec -it user-service-db psql -U postgres -d userdb -c \"INSERT INTO users (id, username, email, full_name, created_at) VALUES ('550e8400-e29b-41d4-a716-446655440000', 'demo_user', 'demo@fortressbank.com', 'Demo User', NOW());\""
+          },
+          "response": []
+        },
+        {
+          "name": "DEMO 2: Full Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"backupType\": \"FULL\",\n  \"backupName\": \"demo_disaster_recovery_backup\",\n  \"compressed\": true,\n  \"encrypted\": false,\n  \"initiatedBy\": \"admin_demo\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:4006/api/backup",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "backup"]
+            },
+            "description": "Step 1 of disaster recovery demo: Create a full backup"
+          },
+          "response": []
+        },
+        {
+          "name": "DEMO 3: Verify Backup Created",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/api/backup",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "backup"]
+            },
+            "description": "Step 2: Verify backup was created successfully. Copy the backupId for restore."
+          },
+          "response": []
+        },
+        {
+          "name": "DEMO 4: Simulate Data Loss",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["actuator", "health"]
+            },
+            "description": "Use this as reference. Simulate disaster via SQL:\n\ndocker exec -it user-service-db psql -U postgres -d userdb -c \"DELETE FROM users;\"\n\nVerify data is gone:\ndocker exec -it user-service-db psql -U postgres -d userdb -c \"SELECT COUNT(*) FROM users;\""
+          },
+          "response": []
+        },
+        {
+          "name": "DEMO 5: Restore Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"backupId\": \"PASTE_BACKUP_ID_HERE\",\n  \"stopServices\": true,\n  \"clearRedisCache\": true,\n  \"verifyIntegrity\": true,\n  \"initiatedBy\": \"admin_demo\"\n}"
+            },
+            "url": {
+              "raw": "http://localhost:4006/api/restore",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["api", "restore"]
+            },
+            "description": "Step 3: Restore from backup. Replace PASTE_BACKUP_ID_HERE with actual backup ID from step 2."
+          },
+          "response": []
+        },
+        {
+          "name": "DEMO 6: Verify Data Restored",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://localhost:4006/actuator/health",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "4006",
+              "path": ["actuator", "health"]
+            },
+            "description": "Use this as reference. Verify data restored via SQL:\n\ndocker exec -it user-service-db psql -U postgres -d userdb -c \"SELECT COUNT(*) FROM users;\"\ndocker exec -it user-service-db psql -U postgres -d userdb -c \"SELECT username, email FROM users WHERE username='demo_user';\""
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4006",
+      "type": "string"
+    },
+    {
+      "key": "backupId",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

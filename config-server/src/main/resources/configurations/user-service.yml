@@ -79,6 +79,14 @@ fortress-bank:
 
   ai-service:
     url: http://host.docker.internal:5000
+
+# Keycloak Configuration
+# keycloak:
+#   auth-server-url: http://keycloak:8080
+#   realm: fortressbank-realm
+#   clientId: kong
+#   clientSecret: XLODsjH5G3f9iqGftbrkdHeNw3NVfNdZ
+
 # Eureka Configuration
 eureka:
   client:

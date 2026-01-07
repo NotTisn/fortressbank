@@ -13,6 +13,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import jakarta.annotation.PostConstruct;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +25,19 @@ public class KeycloakClient {
 
     private final KeycloakProperties properties;
     private final RestTemplate restTemplate;
+    
+    @PostConstruct
+    public void init() {
+        log.info("KeycloakClient initialized with clientId: {}, authServerUrl: {}, realm: {}", 
+            properties.getClientId(), properties.getAuthServerUrl(), properties.getRealm());
+        if (properties.getClientSecret() != null && !properties.getClientSecret().isEmpty()) {
+            log.info("Keycloak client secret is configured (length: {})", properties.getClientSecret().length());
+        } else {
+            log.error("Keycloak client secret is NULL or EMPTY - configuration not loaded!");
+            log.error("KeycloakProperties values: clientId={}, clientSecret={}", 
+                properties.getClientId(), properties.getClientSecret());
+        }
+    }
 
     private String tokenEndpoint() {
         return properties.getAuthServerUrl()
@@ -53,11 +67,55 @@ public class KeycloakClient {
     // =============== TOKEN FLOWS ===============
 
     public TokenResponse loginWithPassword(String username, String password) {
-        return callTokenEndpoint(Map.of(
-                "grant_type", "password",
-                "username", username,
-                "password", password
-        ));
+        return loginWithPassword(username, password, null);
+    }
+
+    public TokenResponse loginWithPassword(String username, String password, String deviceId) {
+        String url = tokenEndpoint();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        
+        // Pass deviceId to Keycloak via X-Device-Id header
+        // Keycloak's SingleDeviceAuthenticator checks both form parameter and header
+        if (deviceId != null && !deviceId.isBlank()) {
+            headers.add("X-Device-Id", deviceId);
+        }
+
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "password");
+        form.add("username", username);
+        form.add("password", password);
+        String clientId = properties.getClientId();
+        String clientSecret = properties.getClientSecret();
+        log.debug("Login attempt - clientId: {}, clientSecret length: {}, url: {}", 
+            clientId, clientSecret != null ? clientSecret.length() : "NULL", url);
+        form.add("client_id", clientId);
+        form.add("client_secret", clientSecret);
+        form.add("scope", "openid");
+        
+        // Also add deviceId as form parameter (Keycloak checks both)
+        if (deviceId != null && !deviceId.isBlank()) {
+            form.add("deviceId", deviceId);
+        }
+
+        HttpEntity<MultiValueMap<String, String>> entity = new HttpEntity<>(form, headers);
+
+        try {
+            ResponseEntity<TokenResponse> response =
+                    restTemplate.postForEntity(url, entity, TokenResponse.class);
+
+            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+                throw new AppException(ErrorCode.USER_CREATION_FAILED, "Keycloak token request failed");
+            }
+            return response.getBody();
+        } catch (HttpStatusCodeException ex) {
+            String errorBody = ex.getResponseBodyAsString();
+            log.error("Keycloak token error: {}", errorBody);
+            log.error("Keycloak login request - URL: {}, clientId: {}, clientSecret present: {}, username: {}", 
+                url, clientId, clientSecret != null && !clientSecret.isEmpty(), username);
+            throw new AppException(ErrorCode.FORBIDDEN, "Authentication failed");
+        }
     }
 
     public TokenResponse refreshToken(String refreshToken) {
