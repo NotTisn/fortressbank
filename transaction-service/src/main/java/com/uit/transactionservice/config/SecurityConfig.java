@@ -56,7 +56,7 @@ public class SecurityConfig implements WebMvcConfigurer {
                 // Public endpoints - no authentication required
                 .requestMatchers("/transactions/public/**").permitAll()
                 // Actuator health check
-                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/api/webhooks/sepay/**").permitAll()
                 // All other endpoints require valid JWT (defense-in-depth, Kong also validates)
                 .anyRequest().authenticated()
             )
