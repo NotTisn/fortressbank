@@ -1,6 +1,7 @@
 package com.uit.userservice.controller;
 
 import com.uit.sharedkernel.api.ApiResponse;
+import com.uit.sharedkernel.exception.AppException;
 import com.uit.userservice.dto.request.AdminCreateUserRequest;
 import com.uit.userservice.dto.request.AdminUpdateUserRequest;
 import com.uit.userservice.dto.response.AdminCreateUserResponse;
@@ -8,10 +9,12 @@ import com.uit.userservice.dto.response.AdminUserResponse;
 import com.uit.userservice.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/admin/users")
 @RequiredArgsConstructor
@@ -39,8 +42,13 @@ public class AdminController {
     // API khóa tài khoản: PUT /admin/users/{userId}/lock
     @PutMapping("/{userId}/lock")
     public ApiResponse<String> lockUser(@PathVariable("userId") String userId) {
-        userService.lockUser(userId);
-        return ApiResponse.success("User account has been locked successfully.");
+        try {
+            userService.lockUser(userId);
+            return ApiResponse.success("User account has been locked successfully.");
+        } catch (AppException e) {
+            log.error(e.getMessage());
+            return ApiResponse.error(500, "Internal Server Error", e.getMessage());
+        }
     }
 
     // API mở khóa: PUT /admin/users/{userId}/unlock
@@ -53,7 +61,12 @@ public class AdminController {
     // API tạo user (bao gồm account và card): POST /admin/users
     @PostMapping
     public ApiResponse<AdminCreateUserResponse> createUser(@Valid @RequestBody AdminCreateUserRequest request) {
-        return ApiResponse.success(userService.createUserByAdmin(request));
+        try {
+            return ApiResponse.success(userService.createUserByAdmin(request));
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            return ApiResponse.error(500, "Internal Server Error", new AdminCreateUserResponse());
+        }
     }
 
     // API cập nhật user: PUT /admin/users/{userId}

@@ -280,7 +280,7 @@ class UserServiceImplTest {
         assertThat(result).isNotNull();
         assertThat(result.id()).isEqualTo("user-123");
         assertThat(result.username()).isEqualTo("johndoe");
-        assertThat(result.enabled()).isTrue();
+        assertThat(result.isEnable()).isTrue();
         verify(userRepository).findById(testUserId);
         verify(keycloakClient).getUserFromKeycloak(testUserId);
     }
@@ -298,7 +298,7 @@ class UserServiceImplTest {
 
         // Then
         assertThat(result).isNotNull();
-        assertThat(result.enabled()).isFalse();
+        assertThat(result.isEnable()).isFalse();
         verify(keycloakClient).getUserFromKeycloak(testUserId);
     }
 

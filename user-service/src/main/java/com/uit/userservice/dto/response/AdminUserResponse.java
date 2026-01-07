@@ -11,6 +11,6 @@ public record AdminUserResponse(
         String citizenId,
         LocalDate dob,
         String phoneNumber,
-        boolean enabled, 
+        boolean isEnable,
         LocalDateTime createdAt
 ) { }

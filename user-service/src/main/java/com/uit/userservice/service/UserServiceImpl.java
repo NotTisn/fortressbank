@@ -160,7 +160,7 @@ public class UserServiceImpl implements UserService {
                 user.getCitizenId(),
                 user.getDob(),
                 user.getPhoneNumber(),
-                true,
+                user.getIsEnable(),
                 user.getCreatedAt()
         ));
     }
@@ -169,6 +169,8 @@ public class UserServiceImpl implements UserService {
     public void lockUser(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setIsEnable(false);
+        userRepository.save(user);
         keycloakClient.updateUserStatus(user.getId(), false);
     }
 
@@ -176,6 +178,8 @@ public class UserServiceImpl implements UserService {
     public void unlockUser(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+        user.setIsEnable(true);
+        userRepository.save(user);
         keycloakClient.updateUserStatus(user.getId(), true);
     }
 
@@ -224,7 +228,8 @@ public class UserServiceImpl implements UserService {
                 request.getUsername(),
                 request.getEmail(),
                 request.getFullName(),
-                request.getPassword()
+                request.getPassword(),
+                request.getPhoneNumber()
         );
 
         // 1.1. Assign roles to user in Keycloak

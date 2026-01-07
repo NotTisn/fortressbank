@@ -24,6 +24,6 @@ public class AdminUpdateUserRequest {
     @DobConstraint(minAge = 18, message = "USER_MUST_BE_18_YEARS_OLD")
     private LocalDate dob;
 
-    @Pattern(regexp = "^[0-9]{10,11}$", message = "PHONE_NUMBER_INVALID_FORMAT")
+    @Pattern(regexp = "^\\+84[0-9]{9,10}$", message = "PHONE_NUMBER_INVALID_FORMAT")
     private String phoneNumber;
 }

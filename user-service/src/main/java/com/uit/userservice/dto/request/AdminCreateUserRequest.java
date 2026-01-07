@@ -41,7 +41,7 @@ public class AdminCreateUserRequest {
     private String citizenId;
 
     @NotBlank(message = "PHONE_NUMBER_REQUIRED")
-    @Pattern(regexp = "^[0-9]{10,11}$", message = "PHONE_NUMBER_INVALID_FORMAT")
+    @Pattern(regexp = "^\\+84[0-9]{9,10}$", message = "PHONE_NUMBER_INVALID_FORMAT")
     private String phoneNumber;
 
     // Account creation options
