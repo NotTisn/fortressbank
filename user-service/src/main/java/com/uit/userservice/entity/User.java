@@ -37,6 +37,9 @@ public class User {
     @Column()
     private Boolean isFaceRegistered = false;
 
+    @Column()
+    private Boolean isEnable = true;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();

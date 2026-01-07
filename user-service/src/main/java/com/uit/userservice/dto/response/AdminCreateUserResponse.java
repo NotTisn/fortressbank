@@ -23,6 +23,7 @@ public class AdminCreateUserResponse {
     private LocalDate dob;
     private String phoneNumber;
     private LocalDateTime createdAt;
+    private Boolean isEnable;
 
     // Account information
     private AccountDto account;

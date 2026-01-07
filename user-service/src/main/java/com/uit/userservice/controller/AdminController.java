@@ -42,8 +42,13 @@ public class AdminController {
     // API khóa tài khoản: PUT /admin/users/{userId}/lock
     @PutMapping("/{userId}/lock")
     public ApiResponse<String> lockUser(@PathVariable("userId") String userId) {
-        userService.lockUser(userId);
-        return ApiResponse.success("User account has been locked successfully.");
+        try {
+            userService.lockUser(userId);
+            return ApiResponse.success("User account has been locked successfully.");
+        } catch (AppException e) {
+            log.error(e.getMessage());
+            return ApiResponse.error(500, "Internal Server Error", e.getMessage());
+        }
     }
 
     // API mở khóa: PUT /admin/users/{userId}/unlock
